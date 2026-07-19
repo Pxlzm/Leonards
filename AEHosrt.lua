@@ -49,10 +49,10 @@ local function formatNumber(amount)
     return formatted
 end
 
--- 🕵️‍♂️ ฟังก์ชันสแกนหลัก (แบบสะสมข้อมูล)
+-- 🕵️‍♂️ ฟังก์ชันสแกนหลัก (รวมทุกขั้นตอนเข้าด้วยกัน)
 local function runInventoryScan()
-    local GlobalResults = {Units = {}, Items = {}, Mounts = {}}
-    local hasFound = false
+    local results = {Units = {}, Items = {}, Mounts = {}}
+    local hasFoundAny = false
     
     -- 1. สแกน Units
     local unitInventory = playerGui:FindFirstChild("UnitInventory")
@@ -68,7 +68,7 @@ local function runInventoryScan()
                     for _, child in pairs(slot:GetDescendants()) do
                         if child:IsA("TextLabel") and child.Text ~= "" and not string.find(string.lower(child.Text), "lvl") then
                             local matched = isInWhitelist(child.Text, targetUnitsWhitelist)
-                            if matched then GlobalResults.Units[matched] = (GlobalResults.Units[matched] or 0) + 1; hasFound = true end
+                            if matched then results.Units[matched] = (results.Units[matched] or 0) + 1; hasFoundAny = true end
                         end
                     end
                 end
@@ -77,7 +77,7 @@ local function runInventoryScan()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game)
     end
 
-    -- 2. สแกน Items & Mounts (อยู่ใน Inventory เดียวกัน)
+    -- 2. สแกน Items & Mounts
     local itemInventory = playerGui:FindFirstChild("ItemInventory")
     if itemInventory then
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game)
@@ -97,13 +97,13 @@ local function runInventoryScan()
                     end
                     if name then
                         local matched = isInWhitelist(name, targetItemsWhitelist)
-                        if matched then GlobalResults.Items[matched] = (GlobalResults.Items[matched] or 0) + count; hasFound = true end
+                        if matched then results.Items[matched] = (results.Items[matched] or 0) + count; hasFoundAny = true end
                     end
                 end
             end
         end
 
-        -- สลับไป Mounts
+        -- สลับ Mounts
         pcall(function()
             local tabContainer = itemInventory.Frame.Frame.Frame.Frame.Frame
             for _, child in pairs(tabContainer:GetChildren()) do
@@ -125,7 +125,7 @@ local function runInventoryScan()
                     for _, child in pairs(slot:GetDescendants()) do
                         if child:IsA("TextLabel") and child.Text ~= "" then
                             local matched = isInWhitelist(child.Text, targetMountsWhitelist)
-                            if matched then GlobalResults.Mounts[matched] = (GlobalResults.Mounts[matched] or 0) + 1; hasFound = true end
+                            if matched then results.Mounts[matched] = (results.Mounts[matched] or 0) + 1; hasFoundAny = true end
                         end
                     end
                 end
@@ -134,40 +134,39 @@ local function runInventoryScan()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game)
     end
 
-    -- 3. ส่งข้อมูลครั้งเดียวเมื่อจบกระบวนการ
-    if hasFound and _G.Horst_SetDescription then
+    -- 3. ส่ง Log ครั้งเดียวในตอนจบ
+    if hasFoundAny and _G.Horst_SetDescription then
         local outputSections = {}
         
-        if next(GlobalResults.Units) then
+        if next(results.Units) then
             local list = {}
-            for n, c in pairs(GlobalResults.Units) do table.insert(list, n) end
+            for n, c in pairs(results.Units) do table.insert(list, n) end
             table.insert(outputSections, "👤 Units : " .. table.concat(list, ", "))
         end
         
-        if next(GlobalResults.Items) then
+        if next(results.Items) then
             local list = {}
-            for n, c in pairs(GlobalResults.Items) do table.insert(list, n .. " " .. formatNumber(c)) end
+            for n, c in pairs(results.Items) do table.insert(list, n .. " " .. formatNumber(c)) end
             table.insert(outputSections, "🧰 Items : " .. table.concat(list, ", "))
         end
         
-        if next(GlobalResults.Mounts) then
+        if next(results.Mounts) then
             local list = {}
-            for n, c in pairs(GlobalResults.Mounts) do table.insert(list, n) end
+            for n, c in pairs(results.Mounts) do table.insert(list, n) end
             table.insert(outputSections, "🐅 Mounts : " .. table.concat(list, ", "))
         end
         
-        local descriptionMessage = table.concat(outputSections, " / ")
-        _G.Horst_SetDescription(descriptionMessage, HttpService:JSONEncode(GlobalResults))
-        print("[Horst Scanner] ส่ง Log รวมสำเร็จ: " .. descriptionMessage)
+        local finalMsg = table.concat(outputSections, " / ")
+        _G.Horst_SetDescription(finalMsg, HttpService:JSONEncode(results))
         return true
     end
     return false
 end
 
--- ลูปเริ่มทำงาน
+-- ลูปเฝ้าระวัง
 task.spawn(function()
     while true do
-        local success = runInventoryScan()
-        task.wait(success and 10 or 2)
+        runInventoryScan()
+        task.wait(15) -- ปรับเวลาหน่วงตรงนี้ให้เหมาะกับการสแกนครบชุด
     end
 end)
