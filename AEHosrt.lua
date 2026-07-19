@@ -1,4 +1,4 @@
--- 1. ส่วนของการรอให้เกมโหลดเสร็จสมบูรณ์
+-- 1. รอให้เกมโหลดเสร็จ
 if not game:IsLoaded() then game.Loaded:Wait() end
 local players = game:GetService("Players")
 local localPlayer = players.LocalPlayer or players:GetPropertyChangedSignal("LocalPlayer"):Wait() or players.LocalPlayer
@@ -49,12 +49,12 @@ local function formatNumber(amount)
     return formatted
 end
 
--- 🕵️‍♂️ ฟังก์ชันสแกนหลัก (รวม Logic ครบถ้วน)
+-- 🕵️‍♂️ ฟังก์ชันสแกนหลัก (แบบสะสมข้อมูล)
 local function runInventoryScan()
-    local unitsResult, itemsResult, mountsResult = {}, {}, {}
+    local GlobalResults = {Units = {}, Items = {}, Mounts = {}}
     local hasFound = false
     
-    -- สแกน Units
+    -- 1. สแกน Units
     local unitInventory = playerGui:FindFirstChild("UnitInventory")
     if unitInventory then
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game)
@@ -68,7 +68,7 @@ local function runInventoryScan()
                     for _, child in pairs(slot:GetDescendants()) do
                         if child:IsA("TextLabel") and child.Text ~= "" and not string.find(string.lower(child.Text), "lvl") then
                             local matched = isInWhitelist(child.Text, targetUnitsWhitelist)
-                            if matched then unitsResult[matched] = (unitsResult[matched] or 0) + 1; hasFound = true end
+                            if matched then GlobalResults.Units[matched] = (GlobalResults.Units[matched] or 0) + 1; hasFound = true end
                         end
                     end
                 end
@@ -77,12 +77,14 @@ local function runInventoryScan()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game)
     end
 
-    -- สแกน Items
+    -- 2. สแกน Items & Mounts (อยู่ใน Inventory เดียวกัน)
     local itemInventory = playerGui:FindFirstChild("ItemInventory")
     if itemInventory then
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game)
         task.wait(0.5)
         local frame = findScrollingFrame(itemInventory)
+        
+        -- สแกน Items
         if frame then
             for _, slot in pairs(frame:GetChildren()) do
                 if (slot:IsA("TextButton") or slot:IsA("ImageButton")) then
@@ -95,13 +97,13 @@ local function runInventoryScan()
                     end
                     if name then
                         local matched = isInWhitelist(name, targetItemsWhitelist)
-                        if matched then itemsResult[matched] = (itemsResult[matched] or 0) + count; hasFound = true end
+                        if matched then GlobalResults.Items[matched] = (GlobalResults.Items[matched] or 0) + count; hasFound = true end
                     end
                 end
             end
         end
 
-        -- สลับ Mounts
+        -- สลับไป Mounts
         pcall(function()
             local tabContainer = itemInventory.Frame.Frame.Frame.Frame.Frame
             for _, child in pairs(tabContainer:GetChildren()) do
@@ -115,14 +117,15 @@ local function runInventoryScan()
             end
         end)
         task.wait(1.5)
-        -- สแกน Mounts (รอบสอง)
+        
+        -- สแกน Mounts
         if frame then
             for _, slot in pairs(frame:GetChildren()) do
                 if (slot:IsA("TextButton") or slot:IsA("ImageButton")) then
                     for _, child in pairs(slot:GetDescendants()) do
                         if child:IsA("TextLabel") and child.Text ~= "" then
                             local matched = isInWhitelist(child.Text, targetMountsWhitelist)
-                            if matched then mountsResult[matched] = (mountsResult[matched] or 0) + 1; hasFound = true end
+                            if matched then GlobalResults.Mounts[matched] = (GlobalResults.Mounts[matched] or 0) + 1; hasFound = true end
                         end
                     end
                 end
@@ -131,23 +134,31 @@ local function runInventoryScan()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game)
     end
 
-    -- จัดการ Log
+    -- 3. ส่งข้อมูลครั้งเดียวเมื่อจบกระบวนการ
     if hasFound and _G.Horst_SetDescription then
         local outputSections = {}
-        local unitsList, itemsList, mountsList = {}, {}, {}
         
-        for n, c in pairs(unitsResult) do table.insert(unitsList, n) end
-        if #unitsList > 0 then table.insert(outputSections, "👤 Units : " .. table.concat(unitsList, ", ")) end
+        if next(GlobalResults.Units) then
+            local list = {}
+            for n, c in pairs(GlobalResults.Units) do table.insert(list, n) end
+            table.insert(outputSections, "👤 Units : " .. table.concat(list, ", "))
+        end
         
-        for n, c in pairs(itemsResult) do table.insert(itemsList, n .. " " .. formatNumber(c)) end
-        if #itemsList > 0 then table.insert(outputSections, "🧰 Items : " .. table.concat(itemsList, ", ")) end
+        if next(GlobalResults.Items) then
+            local list = {}
+            for n, c in pairs(GlobalResults.Items) do table.insert(list, n .. " " .. formatNumber(c)) end
+            table.insert(outputSections, "🧰 Items : " .. table.concat(list, ", "))
+        end
         
-        for n, c in pairs(mountsResult) do table.insert(mountsList, n) end
-        if #mountsList > 0 then table.insert(outputSections, "🐅 Mounts : " .. table.concat(mountsList, ", ")) end
+        if next(GlobalResults.Mounts) then
+            local list = {}
+            for n, c in pairs(GlobalResults.Mounts) do table.insert(list, n) end
+            table.insert(outputSections, "🐅 Mounts : " .. table.concat(list, ", "))
+        end
         
         local descriptionMessage = table.concat(outputSections, " / ")
-        _G.Horst_SetDescription(descriptionMessage, HttpService:JSONEncode({Units=unitsResult, Items=itemsResult, Mounts=mountsResult}))
-        print("[Horst Scanner] ส่ง Log เรียบร้อย: " .. descriptionMessage)
+        _G.Horst_SetDescription(descriptionMessage, HttpService:JSONEncode(GlobalResults))
+        print("[Horst Scanner] ส่ง Log รวมสำเร็จ: " .. descriptionMessage)
         return true
     end
     return false
