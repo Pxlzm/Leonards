@@ -13,7 +13,7 @@ local targetUnitsWhitelist = config.Units or {}
 local targetItemsWhitelist = config.Items or {}
 local targetMountsWhitelist = config.Mounts or {}
 
--- 🛠️ Helper Functions
+-- 🛠️ Helper Functions (คงเดิม)
 local function findScrollingFrame(currentObject)
     if currentObject:IsA("ScrollingFrame") and currentObject.Name == "ScrollingFrame" then return currentObject end
     for _, child in pairs(currentObject:GetChildren()) do
@@ -49,8 +49,8 @@ local function formatNumber(amount)
     return formatted
 end
 
--- 🕵️‍♂️ ฟังก์ชันสแกนหลัก (รวมทุกขั้นตอนเข้าด้วยกัน)
-local function runInventoryScan()
+-- 🕵️‍♂️ ฟังก์ชันสแกนและส่ง Log ทันที (รอบเดียวจบ)
+local function runInventoryScanOnce()
     local results = {Units = {}, Items = {}, Mounts = {}}
     local hasFoundAny = false
     
@@ -84,7 +84,6 @@ local function runInventoryScan()
         task.wait(0.5)
         local frame = findScrollingFrame(itemInventory)
         
-        -- สแกน Items
         if frame then
             for _, slot in pairs(frame:GetChildren()) do
                 if (slot:IsA("TextButton") or slot:IsA("ImageButton")) then
@@ -103,7 +102,6 @@ local function runInventoryScan()
             end
         end
 
-        -- สลับ Mounts
         pcall(function()
             local tabContainer = itemInventory.Frame.Frame.Frame.Frame.Frame
             for _, child in pairs(tabContainer:GetChildren()) do
@@ -118,7 +116,6 @@ local function runInventoryScan()
         end)
         task.wait(1.5)
         
-        -- สแกน Mounts
         if frame then
             for _, slot in pairs(frame:GetChildren()) do
                 if (slot:IsA("TextButton") or slot:IsA("ImageButton")) then
@@ -134,22 +131,19 @@ local function runInventoryScan()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game)
     end
 
-    -- 3. ส่ง Log ครั้งเดียวในตอนจบ
+    -- 3. ส่งข้อมูล
     if hasFoundAny and _G.Horst_SetDescription then
         local outputSections = {}
-        
         if next(results.Units) then
             local list = {}
             for n, c in pairs(results.Units) do table.insert(list, n) end
             table.insert(outputSections, "👤 Units : " .. table.concat(list, ", "))
         end
-        
         if next(results.Items) then
             local list = {}
             for n, c in pairs(results.Items) do table.insert(list, n .. " " .. formatNumber(c)) end
             table.insert(outputSections, "🧰 Items : " .. table.concat(list, ", "))
         end
-        
         if next(results.Mounts) then
             local list = {}
             for n, c in pairs(results.Mounts) do table.insert(list, n) end
@@ -158,15 +152,11 @@ local function runInventoryScan()
         
         local finalMsg = table.concat(outputSections, " / ")
         _G.Horst_SetDescription(finalMsg, HttpService:JSONEncode(results))
-        return true
+        print("[Horst Scanner] สแกนเสร็จสิ้นและส่งข้อมูลเรียบร้อยแล้ว")
+    else
+        print("[Horst Scanner] ไม่พบไอเทมใน Whitelist หรือระบบ Horst ไม่พร้อม")
     end
-    return false
 end
 
--- ลูปเฝ้าระวัง
-task.spawn(function()
-    while true do
-        runInventoryScan()
-        task.wait(15) -- ปรับเวลาหน่วงตรงนี้ให้เหมาะกับการสแกนครบชุด
-    end
-end)
+-- สั่งรันคำสั่งเพียงครั้งเดียว
+runInventoryScanOnce()
