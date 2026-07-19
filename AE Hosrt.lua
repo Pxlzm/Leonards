@@ -142,47 +142,53 @@ local function runInventoryScan()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game)
     end
 
-    -- 📊 ส่งข้อมูลเมื่อพบไอเทมในรายการ Whitelist
+-- 📊 ส่งข้อมูลเมื่อพบไอเทมในรายการ Whitelist
     if hasFound and _G.Horst_SetDescription then
-        local outputParts = {}
+        local outputSections = {}
         
-        -- ประกอบข้อความเรียงตามลำดับ Whitelist ของผู้ใช้ (ตัวอย่าง: Kaiju Egg 500 / Jurassic 83)
+        -- 👤 Units
+        local unitsList = {}
         for _, name in ipairs(targetUnitsWhitelist) do
             if unitsResult[name] and unitsResult[name] > 0 then
-                table.insert(outputParts, name .. " " .. formatNumber(unitsResult[name]))
+                table.insert(unitsList, name)
             end
         end
+        if #unitsList > 0 then
+            table.insert(outputSections, "👤 Units : " .. table.concat(unitsList, ", "))
+        end
         
+        -- 🧰 Items
+        local itemsList = {}
         for _, name in ipairs(targetItemsWhitelist) do
             if itemsResult[name] and itemsResult[name] > 0 then
-                table.insert(outputParts, name .. " " .. formatNumber(itemsResult[name]))
+                table.insert(itemsList, name .. " " .. formatNumber(itemsResult[name]))
             end
         end
+        if #itemsList > 0 then
+            table.insert(outputSections, "🧰 Items : " .. table.concat(itemsList, ", "))
+        end
         
+        -- 🐅 Mounts
+        local mountsList = {}
         for _, name in ipairs(targetMountsWhitelist) do
             if mountsResult[name] and mountsResult[name] > 0 then
-                table.insert(outputParts, name .. " " .. formatNumber(mountsResult[name]))
+                table.insert(mountsList, name)
             end
         end
+        if #mountsList > 0 then
+            table.insert(outputSections, "🐅 Mounts : " .. table.concat(mountsList, ", "))
+        end
         
-        -- รวมประโยคเข้าด้วยกันคั่นด้วย " / "
-        local descriptionMessage = table.concat(outputParts, " / ")
+        -- รวมข้อความด้วย " / "
+        local descriptionMessage = table.concat(outputSections, " / ")
         
-        -- แปลงตารางข้อมูลดิบเป็น JSON Table สำหรับระบบหลังบ้าน
-        local finalJsonTable = {
-            Units = unitsResult,
-            Items = itemsResult,
-            Mounts = mountsResult
-        }
-        local encodeJson = HttpService:JSONEncode(finalJsonTable)
+        -- ส่งข้อมูล
+        local finalJsonTable = { Units = unitsResult, Items = itemsResult, Mounts = mountsResult }
+        _G.Horst_SetDescription(descriptionMessage, HttpService:JSONEncode(finalJsonTable))
         
-        -- สั่งยิงข้อมูลส่งให้ระบบ Horst จริงๆ
-        _G.Horst_SetDescription(descriptionMessage, encodeJson)
-        print("[Horst Scanner] ส่ง Log ไปยังระบบสำเร็จแล้ว: " .. descriptionMessage)
+        print("[Horst Scanner] ส่ง Log เรียบร้อย: " .. descriptionMessage)
         return true
     end
-    return false
-end
 
 -- ลูปเฝ้าระวังทำงานอัตโนมัติ
 task.spawn(function()
