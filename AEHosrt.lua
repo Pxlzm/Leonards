@@ -68,7 +68,7 @@ local function tryComboScanAndSendLog()
         local scrollingFrame = findScrollingFrame(unitInventory)
         if scrollingFrame then
             scrollingFrame.CanvasPosition = Vector2.new(0, scrollingFrame.AbsoluteCanvasSize.Y)
-            task.wait(0.2)
+            task.wait(0.5)
 
             for _, slot in pairs(scrollingFrame:GetChildren()) do
                 if slot:IsA("TextButton") or slot:IsA("ImageButton") then
@@ -94,7 +94,7 @@ local function tryComboScanAndSendLog()
             end
         end
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game)
-        task.wait(0.05)
+        task.wait(1)
         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.H, false, game)
     end
 
@@ -181,7 +181,7 @@ local function tryComboScanAndSendLog()
                 local x = mountsButton.AbsolutePosition.X + (mountsButton.AbsoluteSize.X / 2)
                 local y = mountsButton.AbsolutePosition.Y + (mountsButton.AbsoluteSize.Y / 2) + 60
                 VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1)
-                task.wait(0.05)
+                task.wait(0.5)
                 VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
             end
         end)
