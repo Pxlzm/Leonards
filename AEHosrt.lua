@@ -7,21 +7,6 @@ local HttpService = game:GetService("HttpService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local playerGui = localPlayer:WaitForChild("PlayerGui")
 
--- 🛡️ ระบบปิดหน้าต่าง Update Description (เพิ่มเข้ามาตามที่คุณต้องการ)
-task.spawn(function()
-    pcall(function()
-        -- รอให้ปุ่มปรากฏขึ้นมา
-        local closeButton = playerGui:WaitForChild("TopBar", 5) and 
-                            playerGui.TopBar:FindFirstChild("Frame") and 
-                            playerGui.TopBar.Frame:GetChildren()[5].Frame.Frame.Folder.Frame.TextButton
-        if closeButton then
-            closeButton.MouseButton1Click:Fire()
-            print("[Horst Scanner] ปิดหน้าต่าง Update Description เรียบร้อย")
-            task.wait(1) -- รอให้ UI นิ่งก่อนเริ่มสแกน
-        end
-    end)
-end)
-
 -- 🛡️ โหลด Config
 local config = _G.HorstInventoryConfig or {}
 local targetUnitsWhitelist = config.Units or {}
