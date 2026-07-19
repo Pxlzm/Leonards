@@ -4,7 +4,7 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local localPlayer = players.LocalPlayer
 local playerGui = localPlayer:WaitForChild("PlayerGui")
 
--- 🛡️ โหลด Config
+-- 🛡️ โหลด Config จากผู้ใช้
 local config = _G.HorstInventoryConfig or {}
 local targetUnitsWhitelist = config.Units or {}
 local targetItemsWhitelist = config.Items or {}
@@ -45,6 +45,16 @@ local function safeToNumber(val)
     
     -- 4. ส่งค่ากลับ: ถ้าแปลงสำเร็จคืนค่าตัวเลข ถ้าไม่ได้คืนค่า 1
     return num or 1
+end
+
+local function formatNumber(amount)
+    local formatted = tostring(amount)
+    while true do  
+        local k
+        formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
+        if k == 0 then break end
+    end
+    return formatted
 end
 
 -- 🕵️‍♂️ ฟังก์ชันสแกนหลัก
@@ -132,16 +142,51 @@ local function runInventoryScan()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game)
     end
 
-    -- ส่งข้อมูล (ถ้ามีข้อมูล)
+    -- 📊 ส่งข้อมูลเมื่อพบไอเทมในรายการ Whitelist
     if hasFound and _G.Horst_SetDescription then
-        -- [ใส่ Logic การประกอบ String และเรียก _G.Horst_SetDescription ที่นี่ตามฟอร์แมตเดิมของคุณ]
+        local outputParts = {}
+        
+        -- ประกอบข้อความเรียงตามลำดับ Whitelist ของผู้ใช้ (ตัวอย่าง: Kaiju Egg 500 / Jurassic 83)
+        for _, name in ipairs(targetUnitsWhitelist) do
+            if unitsResult[name] and unitsResult[name] > 0 then
+                table.insert(outputParts, name .. " " .. formatNumber(unitsResult[name]))
+            end
+        end
+        
+        for _, name in ipairs(targetItemsWhitelist) do
+            if itemsResult[name] and itemsResult[name] > 0 then
+                table.insert(outputParts, name .. " " .. formatNumber(itemsResult[name]))
+            end
+        end
+        
+        for _, name in ipairs(targetMountsWhitelist) do
+            if mountsResult[name] and mountsResult[name] > 0 then
+                table.insert(outputParts, name .. " " .. formatNumber(mountsResult[name]))
+            end
+        end
+        
+        -- รวมประโยคเข้าด้วยกันคั่นด้วย " / "
+        local descriptionMessage = table.concat(outputParts, " / ")
+        
+        -- แปลงตารางข้อมูลดิบเป็น JSON Table สำหรับระบบหลังบ้าน
+        local finalJsonTable = {
+            Units = unitsResult,
+            Items = itemsResult,
+            Mounts = mountsResult
+        }
+        local encodeJson = HttpService:JSONEncode(finalJsonTable)
+        
+        -- สั่งยิงข้อมูลส่งให้ระบบ Horst จริงๆ
+        _G.Horst_SetDescription(descriptionMessage, encodeJson)
+        print("[Horst Scanner] ส่ง Log ไปยังระบบสำเร็จแล้ว: " .. descriptionMessage)
         return true
     end
     return false
 end
 
--- ลูปเฝ้าระวัง
+-- ลูปเฝ้าระวังทำงานอัตโนมัติ
 task.spawn(function()
+    print("[Horst Scanner] เริ่มลูประบบตรวจจับอัตโนมัติแบบเสถียร...")
     while true do
         local success = runInventoryScan()
         task.wait(success and 10 or 2)
