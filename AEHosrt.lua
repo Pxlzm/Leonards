@@ -49,7 +49,7 @@ local function formatNumber(amount)
     return formatted
 end
 
--- 🕵️‍♂️ ฟังก์ชันสแกนและส่ง Log ทันที (รอบเดียวจบ)
+-- 🕵️‍♂️ ฟังก์ชันสแกนแบบลำดับ (Sequential)
 local function runInventoryScanOnce()
     local results = {Units = {}, Items = {}, Mounts = {}}
     local hasFoundAny = false
@@ -58,11 +58,11 @@ local function runInventoryScanOnce()
     local unitInventory = playerGui:FindFirstChild("UnitInventory")
     if unitInventory then
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game)
-        task.wait(0.5)
+        task.wait(1.5) -- รอ UI กางออก
         local frame = findScrollingFrame(unitInventory)
         if frame then
             frame.CanvasPosition = Vector2.new(0, frame.AbsoluteCanvasSize.Y)
-            task.wait(0.5)
+            task.wait(1)
             for _, slot in pairs(frame:GetChildren()) do
                 if (slot:IsA("TextButton") or slot:IsA("ImageButton")) then
                     for _, child in pairs(slot:GetDescendants()) do
@@ -74,16 +74,18 @@ local function runInventoryScanOnce()
                 end
             end
         end
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game)
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game) -- ปิด
+        task.wait(1.5) -- รอหน้าต่างปิดสนิทก่อนไปต่อ
     end
 
-    -- 2. สแกน Items & Mounts
+    -- 2. สแกน Items และ Mounts
     local itemInventory = playerGui:FindFirstChild("ItemInventory")
     if itemInventory then
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game)
-        task.wait(0.5)
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game) -- เปิด Items
+        task.wait(1.5)
         local frame = findScrollingFrame(itemInventory)
         
+        -- สแกน Items
         if frame then
             for _, slot in pairs(frame:GetChildren()) do
                 if (slot:IsA("TextButton") or slot:IsA("ImageButton")) then
@@ -102,6 +104,7 @@ local function runInventoryScanOnce()
             end
         end
 
+        -- สลับ Mounts
         pcall(function()
             local tabContainer = itemInventory.Frame.Frame.Frame.Frame.Frame
             for _, child in pairs(tabContainer:GetChildren()) do
@@ -114,8 +117,9 @@ local function runInventoryScanOnce()
                 end
             end
         end)
-        task.wait(1.5)
+        task.wait(2) -- รอให้หน้า Mounts โหลดเสร็จ
         
+        -- สแกน Mounts
         if frame then
             for _, slot in pairs(frame:GetChildren()) do
                 if (slot:IsA("TextButton") or slot:IsA("ImageButton")) then
@@ -128,7 +132,7 @@ local function runInventoryScanOnce()
                 end
             end
         end
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game)
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game) -- ปิดหน้าต่าง J
     end
 
     -- 3. ส่งข้อมูล
@@ -152,11 +156,8 @@ local function runInventoryScanOnce()
         
         local finalMsg = table.concat(outputSections, " / ")
         _G.Horst_SetDescription(finalMsg, HttpService:JSONEncode(results))
-        print("[Horst Scanner] สแกนเสร็จสิ้นและส่งข้อมูลเรียบร้อยแล้ว")
-    else
-        print("[Horst Scanner] ไม่พบไอเทมใน Whitelist หรือระบบ Horst ไม่พร้อม")
+        print("[Horst Scanner] ส่ง Log สำเร็จ!")
     end
 end
 
--- สั่งรันคำสั่งเพียงครั้งเดียว
 runInventoryScanOnce()
