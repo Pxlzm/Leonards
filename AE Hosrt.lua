@@ -30,9 +30,20 @@ local function isInWhitelist(name, whitelistTable)
 end
 
 local function safeToNumber(val)
-    if not val then return 1 end
-    local cleaned = string.gsub(string.gsub(val, ",", ""), "x", "")
-    local num = tonumber(cleaned)
+    if type(val) ~= "string" then return 1 end
+    
+    -- 1. ทำความสะอาด: ตัดคอมม่า (,) และตัวอักษร 'x' ออก
+    local cleaned = string.gsub(val, ",", "")
+    cleaned = string.gsub(cleaned, "x", "")
+    cleaned = string.gsub(cleaned, "X", "")
+    
+    -- 2. กรองเฉพาะตัวเลข: ใช้ string.match เพื่อเอาเฉพาะชุดตัวเลขที่เจอ
+    local numberOnly = string.match(cleaned, "%d+")
+    
+    -- 3. แปลงเป็นตัวเลขแบบปลอดภัย: ไม่ต้องระบุ base (เลขฐาน) ป้องกัน Error
+    local num = tonumber(numberOnly)
+    
+    -- 4. ส่งค่ากลับ: ถ้าแปลงสำเร็จคืนค่าตัวเลข ถ้าไม่ได้คืนค่า 1
     return num or 1
 end
 
