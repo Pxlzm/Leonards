@@ -33,7 +33,7 @@ local function formatNumber(amount)
 end
 
 -- =========================================================
--- 🕵️‍♂️ ฟังก์ชันหลัก (Full Version)
+-- 🕵️‍♂️ ฟังก์ชันหลักที่แก้ไขให้ทำงานลื่นไหล
 -- =========================================================
 local function tryComboScanAndSendLog()
     local localPlayer = players.LocalPlayer
@@ -49,7 +49,7 @@ local function tryComboScanAndSendLog()
     local unitsResult, itemsResult, mountsResult = {}, {}, {}
     local hasFoundSomething = false
 
-    -- 👤 สแกน Units
+    -- 👤 พาร์ท 1: สแกน Units
     local unitInventory = playerGui:FindFirstChild("UnitInventory")
     if unitInventory then
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game); task.wait(0.05); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.H, false, game)
@@ -71,15 +71,14 @@ local function tryComboScanAndSendLog()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game); task.wait(0.5); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.H, false, game)
     end
 
-    -- 🧰 & 🐅 สแกน Items & Mounts
+    -- 🧰 & 🐅 พาร์ท 2: สแกน Items & Mounts
     local itemInventory = playerGui:FindFirstChild("ItemInventory")
     if itemInventory then
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game); task.wait(0.05); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.J, false, game)
         task.wait(3.0)
-        local scrollingFrame = findScrollingFrame(itemInventory)
         
-        -- ใช้ scanTab ตัวที่คุณต้องการ
         local function scanTab(isMountsTab)
+            local scrollingFrame = findScrollingFrame(itemInventory)
             if not scrollingFrame then return end
             for _, slot in pairs(scrollingFrame:GetChildren()) do
                 if slot:IsA("TextButton") or slot:IsA("ImageButton") then
@@ -87,30 +86,31 @@ local function tryComboScanAndSendLog()
                     for _, child in pairs(slot:GetDescendants()) do
                         if child:IsA("TextLabel") and child.Text ~= "" then
                             local text = child.Text
-                            if string.find(text, "x") or string.find(text, "X") then
-                                local cleanAmount = (string.gsub(string.gsub(string.lower(text), "x", ""), ",", ""))
-                                        itemCount = tonumber(cleanAmount) or 1
-                            else
-                                local cleanName = string.gsub(string.gsub(text, "|", ""), ";", "")
-                                cleanName = string.match(cleanName, "^%s*(.-)%s*$")
-                                if cleanName and cleanName ~= "" and not string.find(cleanName, "Lvl") then itemName = cleanName end
+                            if string.find(string.lower(text), "x") then
+                                -- [แก้ไขตรงนี้] ใส่ () ครอบเพื่อป้องกัน Error Base out of range
+                                itemCount = tonumber((string.gsub(string.gsub(string.lower(text), "x", ""), ",", ""))) or 1
+                            elseif not string.find(text, "Lvl") then
+                                local cleanName = string.match(string.gsub(string.gsub(text, "|", ""), ";", ""), "^%s*(.-)%s*$")
+                                if cleanName and cleanName ~= "" then itemName = cleanName end
                             end
                         end
                     end
                     if itemName then
-                        if isMountsTab then
-                            local matchedName = isInWhitelist(itemName, targetMountsWhitelist)
-                            if matchedName then mountsResult[matchedName] = (mountsResult[matchedName] or 0) + itemCount; hasFoundSomething = true end
-                        else
-                            local matchedName = isInWhitelist(itemName, targetItemsWhitelist)
-                            if matchedName then itemsResult[matchedName] = (itemsResult[matchedName] or 0) + itemCount; hasFoundSomething = true end
+                        local list = isMountsTab and targetMountsWhitelist or targetItemsWhitelist
+                        local matchedName = isInWhitelist(itemName, list)
+                        if matchedName then
+                            if isMountsTab then mountsResult[matchedName] = (mountsResult[matchedName] or 0) + 1
+                            else itemsResult[matchedName] = (itemsResult[matchedName] or 0) + itemCount end
+                            hasFoundSomething = true
                         end
                     end
                 end
             end
         end
 
-        scanTab(false)
+        scanTab(false) -- สแกน Items
+        
+        -- เปลี่ยนแท็บ Mounts
         pcall(function()
             local tabContainer = itemInventory.Frame.Frame.Frame.Frame.Frame
             for _, c in pairs(tabContainer:GetChildren()) do
@@ -119,13 +119,14 @@ local function tryComboScanAndSendLog()
                     local btn = c:FindFirstChild("PrimaryButton", true)
                     if btn then
                         local x, y = btn.AbsolutePosition.X + btn.AbsoluteSize.X/2, btn.AbsolutePosition.Y + btn.AbsoluteSize.Y/2 + 60
-                        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1); task.wait(0.1); VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+                        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1); task.wait(0.2); VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
                         break
                     end
                 end
             end
         end)
-        task.wait(3.0); scanTab(true)
+        
+        task.wait(3.0); scanTab(true) -- สแกน Mounts
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game); task.wait(0.5); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.J, false, game)
     end
 
