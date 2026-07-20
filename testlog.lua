@@ -249,10 +249,11 @@ local function tryComboScanAndSendLog()
     end
 end
 
--- ลูปทำงานอัตโนมัติ
+-- ลูปทำงานอัตโนมัติ (แก้ไขให้วนลูปตลอดไปโดยไม่หยุด)
 task.spawn(function()
-    print("[GitHub Script] โหลดสคริปต์หลักสำเร็จ... เริ่มทำงานระบบวนลูปตรวจสอบ")
+    print("[GitHub Script] เริ่มต้นระบบสแกนอัตโนมัติ (Continuous Loop)")
     while true do
-        task.wait(5)
+        tryComboScanAndSendLog() 
+        -- ไม่ต้องใส่ task.wait(5) ที่นี่ เพราะในฟังก์ชัน tryComboScanAndSendLog มี task.wait(5.0) อยู่แล้ว
     end
 end)
