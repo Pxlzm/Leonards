@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (Fixed from Official Docs)
+-- Script: HorstInventory Pro (Stats & Inventory Fusion)
 -- ========================================================
 
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
@@ -7,89 +7,98 @@ local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 local HttpService = game:GetService("HttpService")
 
 repeat task.wait(0.5) until game:IsLoaded()
--- รองรับการตั้ง Config ทั้งแบบ _G และ getgenv
 local CFG = _G.HorstInventoryConfig or getgenv().HorstInventoryConfig
 
-print("[INFO] Script Started - Connected to Horst Documentation Rules")
+print("[INFO] Script Started - Loaded Stats & Inventory Scanner")
 
--- Helper: ส่ง Log ตามคู่มือแป๊ะๆ (เรียกผ่าน _G.)
 local function setDesc(text, data)
     if typeof(_G.Horst_SetDescription) == "function" then
         _G.Horst_SetDescription(text, data)
     elseif typeof(getgenv().Horst_SetDescription) == "function" then
         getgenv().Horst_SetDescription(text, data)
-    else
-        warn("[WARNING] _G.Horst_SetDescription not found!")
     end
 end
 
--- ดึงข้อมูลจาก Key ที่ถูกต้อง
-local function readInventory()
-    local pData = Fusion.peek(Dependencies.PlayerData) or {}
-    return pData.UnitData or {}, pData.ItemData or {}, pData.MountData or {}
-end
-
--- สร้างข้อความ Log (ห้ามใช้ | และ ; เด็ดขาด)
-local function buildDescription(unitsFound, itemsFound, mountsFound)
-    local parts = {}
-    
-    -- จัดฟอร์แมตข้อความแบบ "ชื่อ จำนวน" (เช่น: Kaiju Egg 500)
-    for name, count in pairs(unitsFound) do table.insert(parts, name .. " " .. count) end
-    for name, count in pairs(itemsFound) do table.insert(parts, name .. " " .. count) end
-    for name, count in pairs(mountsFound) do table.insert(parts, name .. " " .. count) end
-    
-    if #parts == 0 then return "Empty" end
-    
-    -- คั่นแต่ละรายการด้วย " / " เท่านั้น
-    return table.concat(parts, " / ")
-end
-
--- Main Loop
 task.spawn(function()
     while true do
-        local rawUnits, rawItems, rawMounts = readInventory()
-        local scannedUnits, scannedItems, scannedMounts = {}, {}, {}
+        local pData = Fusion.peek(Dependencies.PlayerData) or {}
+        local rawUnits = pData.UnitData or {}
+        local rawItems = pData.ItemData or {} 
+        local rawMounts = pData.MountData or {}
         
+        local parts = {}
+        local jsonData = { units = {}, items = {}, mounts = {}, stats = {} }
+        
+        -- =======================================
+        -- 1. จัดการ Stats หลัก (Level, Gems, Rerolls)
+        -- =======================================
+        local statsCfg = CFG.Stats or {}
+        
+        if statsCfg.Level and pData.Level then 
+            table.insert(parts, "Level " .. pData.Level) 
+            jsonData.stats.Level = pData.Level
+        end
+        if statsCfg.Gems and rawItems.Gem then 
+            table.insert(parts, "Gems " .. (rawItems.Gem.Amount or 0)) 
+            jsonData.stats.Gems = rawItems.Gem.Amount or 0
+        end
+        if statsCfg.TraitReroll and rawItems.TraitReroll then 
+            table.insert(parts, "TraitReroll " .. (rawItems.TraitReroll.Amount or 0)) 
+            jsonData.stats.TraitReroll = rawItems.TraitReroll.Amount or 0
+        end
+        if statsCfg.StatReroll and rawItems.StatReroll then 
+            table.insert(parts, "StatReroll " .. (rawItems.StatReroll.Amount or 0)) 
+            jsonData.stats.StatReroll = rawItems.StatReroll.Amount or 0
+        end
+
+        -- =======================================
+        -- 2. จัดการ Units, Items, Mounts ตามที่ตั้ง Config
+        -- =======================================
         -- กรอง Units
         for _, v in pairs(rawUnits) do
-            local name = v.Name or v.UnitName or "" 
+            local name = v.Asset or ""
             for _, target in pairs(CFG.Units or {}) do
                 if string.lower(name) == string.lower(target) then
-                    scannedUnits[target] = (scannedUnits[target] or 0) + 1
+                    jsonData.units[target] = (jsonData.units[target] or 0) + 1
                 end
             end
         end
         
         -- กรอง Items
-        for _, v in pairs(rawItems) do
-            local name = v.Name or ""
+        for k, v in pairs(rawItems) do
+            local name = tostring(k)
             local amount = v.Amount or 1
             for _, target in pairs(CFG.Items or {}) do
                 if string.lower(name) == string.lower(target) then
-                    scannedItems[target] = (scannedItems[target] or 0) + amount
+                    jsonData.items[target] = (jsonData.items[target] or 0) + amount
                 end
             end
         end
         
         -- กรอง Mounts
-        for _, v in pairs(rawMounts) do
-            local name = v.Name or ""
+        for k, v in pairs(rawMounts) do
+            local name = v.Asset or v.Name or tostring(k)
             for _, target in pairs(CFG.Mounts or {}) do
                 if string.lower(name) == string.lower(target) then
-                    scannedMounts[target] = (scannedMounts[target] or 0) + 1
+                    jsonData.mounts[target] = (jsonData.mounts[target] or 0) + 1
                 end
             end
         end
 
-        -- แพ็ค JSON และส่ง Log
-        local desc = buildDescription(scannedUnits, scannedItems, scannedMounts)
-        local jsonData = HttpService:JSONEncode({
-            units = scannedUnits, 
-            items = scannedItems, 
-            mounts = scannedMounts
-        })
+        -- นำข้อมูล Units, Items, Mounts ยัดรวมเข้าไปในข้อความ (parts)
+        for name, count in pairs(jsonData.units) do table.insert(parts, name .. " " .. count) end
+        for name, count in pairs(jsonData.items) do table.insert(parts, name .. " " .. count) end
+        for name, count in pairs(jsonData.mounts) do table.insert(parts, name .. " " .. count) end
+
+        -- =======================================
+        -- 3. ส่งข้อมูลเข้า Horst
+        -- =======================================
+        local desc = "Empty"
+        if #parts > 0 then 
+            desc = table.concat(parts, " / ") 
+        end
         
-        setDesc(desc, jsonData)
+        setDesc(desc, HttpService:JSONEncode(jsonData))
         
         task.wait(15)
     end
