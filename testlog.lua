@@ -1,40 +1,30 @@
--- ========================================================
--- Script: HorstInventory Pro (GitHub Integration)
--- ========================================================
-
--- ส่วนหัว: โหลด Library พื้นฐาน[cite: 2, 3]
+-- ส่วนหัว: โหลด Library พื้นฐาน
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 local HttpService = game:GetService("HttpService")
 
--- รอให้ทุกอย่างพร้อมและโหลด Config[cite: 1]
-repeat task.wait(0.5) until game:IsLoaded()
+-- รอให้ Config โหลดให้เรียบร้อยก่อน[cite: 1]
 repeat task.wait(0.5) until getgenv().HorstInventoryConfig
-
 local CFG = getgenv().HorstInventoryConfig
-print("[INFO] Script Started Successfully")
 
--- Helper: ส่ง Log อย่างปลอดภัย (ตรวจเช็คว่าเป็นฟังก์ชันจริงก่อนรัน)
+-- Helper: ส่ง Log อย่างปลอดภัย
 local function setDesc(text, data)
     if typeof(getgenv().Horst_SetDescription) == "function" then
         getgenv().Horst_SetDescription(text, data)
-    else
-        warn("[WARNING] Horst_SetDescription not found in getgenv()!")
     end
 end
 
--- ดึงข้อมูลจาก Fusion (Direct Data Access)[cite: 2]
-local function readInventory()
+-- อ่านค่าจาก Fusion (Internal Data)
+local function readData()
     local pData = Fusion.peek(Dependencies.PlayerData) or {}
-    
-    -- ถ้า Units/Items เป็น 0 ให้กลับไปเช็ค Key ใน PlayerData อีกที[cite: 2]
+    -- ปรับชื่อ Key ให้ตรงกับที่ Console ของคุณ print ออกมาตอนรัน Diagnostic Tool
     local units = pData.Units or {} 
     local items = pData.Items or {}
     
     return units, items
 end
 
--- สร้างข้อความ Log ให้สะอาดตา[cite: 3]
+-- สร้างข้อความ Log ให้สะอาดตา
 local function buildDescription(unitsFound, itemsFound)
     local parts = {}
     
@@ -54,10 +44,9 @@ end
 -- Main Loop
 task.spawn(function()
     while true do
-        -- 1. อ่านข้อมูล[cite: 2]
-        local rawUnits, rawItems = readInventory()
+        local rawUnits, rawItems = readData()
         
-        -- 2. ประมวลผล (กรองตาม Config)
+        -- Logic กรองข้อมูลตาม Config
         local scannedUnits, scannedItems = {}, {}
         
         -- กรอง Units
@@ -81,10 +70,10 @@ task.spawn(function()
             end
         end
 
-        -- 3. ส่ง Log[cite: 3]
+        -- ส่ง Log
         local desc = buildDescription(scannedUnits, scannedItems)
         setDesc(desc, HttpService:JSONEncode({units=scannedUnits, items=scannedItems}))
         
-        task.wait(15) -- หน่วงเวลาเพื่อประสิทธิภาพ
+        task.wait(15) -- หน่วงเวลาเพื่อความปลอดภัย
     end
 end)
