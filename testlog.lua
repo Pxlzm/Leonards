@@ -2,9 +2,6 @@ local players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 
--- =========================================================
--- 🛠️ ฟังก์ชันช่วยเหลือ (Helpers)
--- =========================================================
 local function findScrollingFrame(currentObject)
     if currentObject:IsA("ScrollingFrame") and currentObject.Name == "ScrollingFrame" then return currentObject end
     for _, child in pairs(currentObject:GetChildren()) do
@@ -32,11 +29,7 @@ local function formatNumber(amount)
     return formatted
 end
 
--- =========================================================
--- 🕵️‍♂️ ฟังก์ชันหลักการสแกน (Fixed Nil Index Error)
--- =========================================================
 local function tryComboScanAndSendLog()
-    -- ดึงค่าใหม่ทุกรอบเพื่อกัน Error Nil
     local localPlayer = players.LocalPlayer
     if not localPlayer then return false end
     local playerGui = localPlayer:FindFirstChild("PlayerGui")
@@ -50,22 +43,20 @@ local function tryComboScanAndSendLog()
     local unitsResult, itemsResult, mountsResult = {}, {}, {}
     local hasFoundSomething = false
 
-    -- 👤 สแกน Units
+    -- 👤 พาร์ท 1: สแกน Units
     local unitInventory = playerGui:FindFirstChild("UnitInventory")
     if unitInventory then
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game)
-        task.wait(0.05); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.H, false, game)
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game); task.wait(0.05); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.H, false, game)
         task.wait(3.0)
         local scrollingFrame = findScrollingFrame(unitInventory)
         if scrollingFrame then
-            scrollingFrame.CanvasPosition = Vector2.new(0, scrollingFrame.AbsoluteCanvasSize.Y)
-            task.wait(3.0)
+            scrollingFrame.CanvasPosition = Vector2.new(0, scrollingFrame.AbsoluteCanvasSize.Y); task.wait(3.0)
             for _, slot in pairs(scrollingFrame:GetChildren()) do
                 if slot:IsA("TextButton") or slot:IsA("ImageButton") then
                     for _, child in pairs(slot:GetDescendants()) do
                         if child:IsA("TextLabel") and child.Text ~= "" and not string.find(child.Text, "Lvl") then
-                            local matchedName = isInWhitelist(child.Text, targetUnitsWhitelist)
-                            if matchedName then unitsResult[matchedName] = (unitsResult[matchedName] or 0) + 1; hasFoundSomething = true; break end
+                            local matched = isInWhitelist(child.Text, targetUnitsWhitelist)
+                            if matched then unitsResult[matched] = (unitsResult[matched] or 0) + 1; hasFoundSomething = true; break end
                         end
                     end
                 end
@@ -74,68 +65,68 @@ local function tryComboScanAndSendLog()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game); task.wait(0.5); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.H, false, game)
     end
 
-    -- 🧰 & 🐅 สแกน Items & Mounts
+    -- 🧰 & 🐅 พาร์ท 2: สแกน Items & Mounts
     local itemInventory = playerGui:FindFirstChild("ItemInventory")
     if itemInventory then
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game)
-        task.wait(0.05); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.J, false, game)
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game); task.wait(0.05); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.J, false, game)
         task.wait(3.0)
         local scrollingFrame = findScrollingFrame(itemInventory)
         
-    local function scanTab(isMounts)
-                if not scrollingFrame then return end
-                for _, slot in pairs(scrollingFrame:GetChildren()) do
-                    if slot:IsA("TextButton") or slot:IsA("ImageButton") then
-                        local name, count = nil, 1
-                        for _, child in pairs(slot:GetDescendants()) do
-                            if child:IsA("TextLabel") and child.Text ~= "" then
-                                if string.find(string.lower(child.Text), "x") then 
-                                    -- การครอบ () ช่วยตัดค่าที่สองของ gsub ทิ้งไป ทำให้ tonumber ไม่รวน
-                                    count = tonumber((string.gsub(string.lower(child.Text), "x", ""))) or 1
-                                elseif not string.find(child.Text, "Lvl") then 
-                                    name = child.Text 
-                                end
-                            end
+        local function scanTab(isMounts)
+            if not scrollingFrame then return end
+            for _, slot in pairs(scrollingFrame:GetChildren()) do
+                if slot:IsA("TextButton") or slot:IsA("ImageButton") then
+                    local name, count = nil, 1
+                    for _, child in pairs(slot:GetDescendants()) do
+                        if child:IsA("TextLabel") and child.Text ~= "" then
+                            if string.find(string.lower(child.Text), "x") then count = tonumber((string.gsub(string.lower(child.Text), "x", ""))) or 1
+                            elseif not string.find(child.Text, "Lvl") then name = child.Text end
                         end
-                        if name then
-                            local list = isMounts and targetMountsWhitelist or targetItemsWhitelist
-                            local match = isInWhitelist(name, list)
-                            if match then
-                                if isMounts then mountsResult[match] = (mountsResult[match] or 0) + 1 
-                                else itemsResult[match] = (itemsResult[match] or 0) + count end
-                                hasFoundSomething = true
-                            end
+                    end
+                    if name then
+                        local list = isMounts and targetMountsWhitelist or targetItemsWhitelist
+                        local match = isInWhitelist(name, list)
+                        if match then
+                            if isMounts then mountsResult[match] = (mountsResult[match] or 0) + 1 else itemsResult[match] = (itemsResult[match] or 0) + count end
+                            hasFoundSomething = true
                         end
                     end
                 end
             end
+        end
+
         scanTab(false)
-        -- สลับ Tab Mounts
         pcall(function()
             local tabContainer = itemInventory.Frame.Frame.Frame.Frame.Frame
-            local btn = nil
             for _, c in pairs(tabContainer:GetChildren()) do
                 local l = c:FindFirstChildOfClass("TextLabel") or c:FindFirstChild("Text", true)
-                if l and string.find(string.lower(l.Text), "mounts") then btn = c:FindFirstChild("PrimaryButton", true) break end
-            end
-            if btn then
-                local x, y = btn.AbsolutePosition.X + btn.AbsoluteSize.X/2, btn.AbsolutePosition.Y + btn.AbsoluteSize.Y/2 + 60
-                VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1); task.wait(0.1); VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+                if l and string.find(string.lower(l.Text), "mounts") then
+                    local btn = c:FindFirstChild("PrimaryButton", true)
+                    if btn then
+                        local x, y = btn.AbsolutePosition.X + btn.AbsoluteSize.X/2, btn.AbsolutePosition.Y + btn.AbsoluteSize.Y/2 + 60
+                        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1); task.wait(0.1); VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
+                        break
+                    end
+                end
             end
         end)
         task.wait(3.0); scanTab(true)
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game); task.wait(0.5); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.J, false, game)
     end
 
-    -- ส่ง Log
-    if hasFoundSomething and _G.Horst_SetDescription then
-        local msg = "" -- (รวมข้อความของคุณ)
+    -- 📊 สรุปผลและส่ง Log
+    local outputSections = {}
+    for _, n in ipairs(targetUnitsWhitelist) do if unitsResult[n] then table.insert(outputSections, "👤Units : " .. n) end end
+    for _, n in ipairs(targetItemsWhitelist) do if itemsResult[n] then table.insert(outputSections, "🧰Items : " .. n .. " " .. formatNumber(itemsResult[n])) end end
+    for _, n in ipairs(targetMountsWhitelist) do if mountsResult[n] then table.insert(outputSections, "🐅Mounts : " .. n) end end
+    
+    local msg = table.concat(outputSections, " / ")
+    if _G.Horst_SetDescription then
         _G.Horst_SetDescription(msg, HttpService:JSONEncode({Units=unitsResult, Items=itemsResult, Mounts=mountsResult}))
-        print("[Log Sent]")
-        task.wait(5.0)
-    else
-        task.wait(5.0)
+        print("[Log Sent]: " .. msg)
     end
+    
+    task.wait(5.0)
     return true
 end
 
