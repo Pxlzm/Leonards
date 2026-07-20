@@ -86,9 +86,9 @@ task.spawn(function()
         end
 
         -- รวมข้อความ
-        for name, count in pairs(jsonData.units) do table.insert(parts, name .. " " .. count) end
-        for name, count in pairs(jsonData.items) do table.insert(parts, name .. " " .. count) end
-        for name, count in pairs(jsonData.mounts) do table.insert(parts, name .. " " .. count) end
+        for name, count in pairs(jsonData.units) do table.insert(parts, "👤 " .. name .. " " .. count) end
+        for name, count in pairs(jsonData.items) do table.insert(parts, "📦 " .. name .. " " .. count) end
+        for name, count in pairs(jsonData.mounts) do table.insert(parts, "🦄 " .. name .. " " .. count) end
 
         -- ส่งข้อมูลเข้า Horst
         local desc = "Empty"
