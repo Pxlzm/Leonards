@@ -1,19 +1,20 @@
 -- ========================================================
--- Script: HorstInventory Pro (Final Optimized)
+-- Script: HorstInventory Pro (GitHub Integration)
 -- ========================================================
 
+-- ส่วนหัว: โหลด Library พื้นฐาน[cite: 2, 3]
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 local HttpService = game:GetService("HttpService")
 
--- รอให้ทุกอย่างพร้อม[cite: 1]
+-- รอให้ทุกอย่างพร้อมและโหลด Config[cite: 1]
 repeat task.wait(0.5) until game:IsLoaded()
 repeat task.wait(0.5) until getgenv().HorstInventoryConfig
 
 local CFG = getgenv().HorstInventoryConfig
-print("[INFO] Script Started - Using correct Data Keys")
+print("[INFO] Script Started Successfully")
 
--- Helper: ส่ง Log อย่างปลอดภัย[cite: 3]
+-- Helper: ส่ง Log อย่างปลอดภัย (ตรวจเช็คว่าเป็นฟังก์ชันจริงก่อนรัน)
 local function setDesc(text, data)
     if typeof(getgenv().Horst_SetDescription) == "function" then
         getgenv().Horst_SetDescription(text, data)
@@ -22,30 +23,30 @@ local function setDesc(text, data)
     end
 end
 
--- อ่านค่าจาก Fusion (ดึงจาก Key ที่คุณค้นพบใน Diagnostic Tool)[cite: 1, 2]
+-- ดึงข้อมูลจาก Fusion (Direct Data Access)[cite: 2]
 local function readInventory()
     local pData = Fusion.peek(Dependencies.PlayerData) or {}
     
-    local units = pData.UnitData or {} 
-    local items = pData.ItemData or {}
-    local mounts = pData.MountData or {}
+    -- ถ้า Units/Items เป็น 0 ให้กลับไปเช็ค Key ใน PlayerData อีกที[cite: 2]
+    local units = pData.Units or {} 
+    local items = pData.Items or {}
     
-    return units, items, mounts
+    return units, items
 end
 
 -- สร้างข้อความ Log ให้สะอาดตา[cite: 3]
-local function buildDescription(unitsFound, itemsFound, mountsFound)
+local function buildDescription(unitsFound, itemsFound)
     local parts = {}
     
-    local function formatTable(tbl, label, emoji)
-        local list = {}
-        for name, count in pairs(tbl) do table.insert(list, name .. "x" .. count) end
-        return emoji .. label .. ": " .. (#list > 0 and table.concat(list, ", ") or "None")
-    end
+    -- รวม Units
+    local unitList = {}
+    for name, count in pairs(unitsFound) do table.insert(unitList, name .. "x" .. count) end
+    table.insert(parts, "👤Units: " .. (#unitList > 0 and table.concat(unitList, ", ") or "None"))
     
-    table.insert(parts, formatTable(unitsFound, "Units", "👤"))
-    table.insert(parts, formatTable(itemsFound, "Items", "🧰"))
-    table.insert(parts, formatTable(mountsFound, "Mounts", "🦄"))
+    -- รวม Items
+    local itemList = {}
+    for name, count in pairs(itemsFound) do table.insert(itemList, name .. "x" .. count) end
+    table.insert(parts, "🧰Items: " .. (#itemList > 0 and table.concat(itemList, ", ") or "None"))
     
     return table.concat(parts, " | ")
 end
@@ -53,13 +54,15 @@ end
 -- Main Loop
 task.spawn(function()
     while true do
-        local rawUnits, rawItems, rawMounts = readInventory()
+        -- 1. อ่านข้อมูล[cite: 2]
+        local rawUnits, rawItems = readInventory()
         
-        local scannedUnits, scannedItems, scannedMounts = {}, {}, {}
+        -- 2. ประมวลผล (กรองตาม Config)
+        local scannedUnits, scannedItems = {}, {}
         
-        -- กรองข้อมูลตาม Config
+        -- กรอง Units
         for _, v in pairs(rawUnits) do
-            local name = v.Name or v.UnitName or "" -- เผื่อ Field ชื่อเปลี่ยน
+            local name = v.Name or ""
             for _, target in pairs(CFG.Units or {}) do
                 if string.lower(name) == string.lower(target) then
                     scannedUnits[target] = (scannedUnits[target] or 0) + 1
@@ -67,6 +70,7 @@ task.spawn(function()
             end
         end
         
+        -- กรอง Items
         for _, v in pairs(rawItems) do
             local name = v.Name or ""
             local amount = v.Amount or 1
@@ -76,20 +80,11 @@ task.spawn(function()
                 end
             end
         end
-        
-        for _, v in pairs(rawMounts) do
-            local name = v.Name or ""
-            for _, target in pairs(CFG.Mounts or {}) do
-                if string.lower(name) == string.lower(target) then
-                    scannedMounts[target] = (scannedMounts[target] or 0) + 1
-                end
-            end
-        end
 
-        -- ส่ง Log[cite: 3]
-        local desc = buildDescription(scannedUnits, scannedItems, scannedMounts)
-        setDesc(desc, HttpService:JSONEncode({units=scannedUnits, items=scannedItems, mounts=scannedMounts}))
+        -- 3. ส่ง Log[cite: 3]
+        local desc = buildDescription(scannedUnits, scannedItems)
+        setDesc(desc, HttpService:JSONEncode({units=scannedUnits, items=scannedItems}))
         
-        task.wait(15)
+        task.wait(15) -- หน่วงเวลาเพื่อประสิทธิภาพ
     end
 end)
