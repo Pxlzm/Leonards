@@ -26,7 +26,7 @@ local function isInWhitelist(name, whitelistTable)
 end
 
 -- =========================================================
--- 🕵️‍♂️ ฟังก์ชันหลัก (เน้น Path Mounts โดยเฉพาะ)
+-- 🕵️‍♂️ ฟังก์ชันหลัก (แก้ไขระบบกดปุ่ม Mounts)
 -- =========================================================
 local function tryComboScanAndSendLog()
     local playerGui = localPlayer and localPlayer:FindFirstChild("PlayerGui")
@@ -36,15 +36,25 @@ local function tryComboScanAndSendLog()
     local hasFoundSomething = false
     local config = _G.HorstInventoryConfig or {}
 
-    -- 1. เปิด Inventory
     local itemInventory = playerGui:FindFirstChild("ItemInventory")
     if itemInventory then
+        -- เปิด Inventory
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game); task.wait(0.1); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.J, false, game)
         task.wait(1.5)
 
-        -- กำหนด Path Mounts เฉพาะเจาะจง
         local baseFrame = itemInventory.Frame.Frame.Frame.Frame.Frame
-        local btnMounts = baseFrame:GetChildren()[5].Folder.Frame.Frame
+
+        -- 🔍 ระบบหาปุ่ม Mounts อัตโนมัติ (ไม่ใช้เลข 5 แล้ว)
+        local btnMounts = nil
+        for _, tab in pairs(baseFrame:GetChildren()) do
+            -- ลองหา Label ที่มีคำว่า Mounts ข้างในปุ่มหรือกล่องปุ่มนั้น
+            local label = tab:FindFirstChild("TextLabel", true) or tab:FindFirstChild("Label", true) or tab:FindFirstChild("Text", true)
+            if label and string.find(string.lower(label.Text), "mounts") then
+                -- ถ้าเจอ Label แล้ว ให้ดึง Path ต่อไปตามที่คุณบอก
+                btnMounts = tab:FindFirstChild("Folder") and tab.Folder.Frame.Frame
+                if btnMounts then break end
+            end
+        end
 
         local function click(btn)
             if not btn then return end
@@ -81,21 +91,25 @@ local function tryComboScanAndSendLog()
             end
         end
 
-        -- A. สแกน Items (แท็บที่ถูกเลือกอัตโนมัติ)
+        -- 1. สแกน Items
         scanTab(false)
 
-        -- B. สลับแท็บ Mounts ด้วย Path ที่ระบุ
-        pcall(function() click(btnMounts) end)
+        -- 2. สลับแท็บ Mounts (ถ้าหาปุ่มเจอ)
+        if btnMounts then
+            click(btnMounts)
+        else
+            warn("[Warning] หาปุ่ม Mounts ไม่เจอ! ตรวจสอบว่าในเกมมีแท็บชื่อ Mounts หรือไม่")
+        end
         task.wait(1.5)
         
-        -- C. สแกน Mounts
+        -- 3. สแกน Mounts
         scanTab(true)
 
         -- ปิด Inventory
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game); task.wait(0.5); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.J, false, game)
     end
 
-    -- 2. ส่ง Log
+    -- ส่ง Log
     if hasFoundSomething and _G.Horst_SetDescription then
         local logMsg = {}
         for _, n in ipairs(config.Items or {}) do if itemsResult[n] then table.insert(logMsg, "🧰Items : " .. n .. " " .. itemsResult[n]) end end
