@@ -88,8 +88,8 @@ local function tryComboScanAndSendLog()
                         if child:IsA("TextLabel") and child.Text ~= "" then
                             local text = child.Text
                             if string.find(text, "x") or string.find(text, "X") then
-                                local cleanAmount = (string.gsub(string.gsub(string.lower(text), "x", ""), ",", ""))
-                                itemCount = tonumber(cleanAmount) or 1
+                                local cleanAmount = string.gsub(string.gsub(string.lower(text), "x", ""), ",", "")
+                                        itemCount = tonumber(cleanAmount) or 1
                             else
                                 local cleanName = string.gsub(string.gsub(text, "|", ""), ";", "")
                                 cleanName = string.match(cleanName, "^%s*(.-)%s*$")
