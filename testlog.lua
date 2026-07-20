@@ -83,28 +83,33 @@ local function tryComboScanAndSendLog()
         local scrollingFrame = findScrollingFrame(itemInventory)
         
         local function scanTab(isMounts)
-            if not scrollingFrame then return end
-            for _, slot in pairs(scrollingFrame:GetChildren()) do
-                if slot:IsA("TextButton") or slot:IsA("ImageButton") then
-                    local name, count = nil, 1
-                    for _, child in pairs(slot:GetDescendants()) do
-                        if child:IsA("TextLabel") and child.Text ~= "" then
-                            if string.find(string.lower(child.Text), "x") then count = tonumber(string.gsub(string.lower(child.Text), "x", "")) or 1
-                            elseif not string.find(child.Text, "Lvl") then name = child.Text end
-                        end
-                    end
-                    if name then
-                        local list = isMounts and targetMountsWhitelist or targetItemsWhitelist
-                        local match = isInWhitelist(name, list)
-                        if match then
-                            if isMounts then mountsResult[match] = (mountsResult[match] or 0) + 1 else itemsResult[match] = (itemsResult[match] or 0) + count end
-                            hasFoundSomething = true
-                        end
+    if not scrollingFrame then return end
+    for _, slot in pairs(scrollingFrame:GetChildren()) do
+        if slot:IsA("TextButton") or slot:IsA("ImageButton") then
+            local name, count = nil, 1
+            for _, child in pairs(slot:GetDescendants()) do
+                if child:IsA("TextLabel") and child.Text ~= "" then
+                    if string.find(string.lower(child.Text), "x") then 
+                        -- ใช้ ( ) ครอบเพื่อเอาแค่ค่าผลลัพธ์แรกของ gsub เท่านั้น
+                        local cleanStr = (string.gsub(string.lower(child.Text), "x", ""))
+                        count = tonumber(cleanStr) or 1
+                    elseif not string.find(child.Text, "Lvl") then 
+                        name = child.Text 
                     end
                 end
             end
+            if name then
+                local list = isMounts and targetMountsWhitelist or targetItemsWhitelist
+                local match = isInWhitelist(name, list)
+                if match then
+                    if isMounts then mountsResult[match] = (mountsResult[match] or 0) + 1 
+                    else itemsResult[match] = (itemsResult[match] or 0) + count end
+                    hasFoundSomething = true
+                end
+            end
         end
-
+    end
+end
         scanTab(false)
         -- สลับ Tab Mounts
         pcall(function()
