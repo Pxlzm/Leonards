@@ -4,14 +4,6 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local localPlayer = players.LocalPlayer
 
 -- =========================================================
--- 🛡️ [DYNAMIC CONFIG] ดึงค่าจาก _G
--- =========================================================
-local config = _G.HorstInventoryConfig or {}
-local targetUnitsWhitelist = config.Units or {}
-local targetItemsWhitelist = config.Items or {}
-local targetMountsWhitelist = config.Mounts or {}
-
--- =========================================================
 -- 🛠️ ฟังก์ชันช่วยเหลือ (Helpers)
 -- =========================================================
 local function findScrollingFrame(currentObject)
@@ -34,48 +26,24 @@ local function isInWhitelist(name, whitelistTable)
 end
 
 -- =========================================================
--- 🕵️‍♂️ ฟังก์ชันหลัก (ใช้ Path ตรงจากคุณ)
+-- 🕵️‍♂️ ฟังก์ชันหลัก (เน้น Path Mounts โดยเฉพาะ)
 -- =========================================================
 local function tryComboScanAndSendLog()
     local playerGui = localPlayer and localPlayer:FindFirstChild("PlayerGui")
     if not playerGui then return end
 
-    local unitsResult, itemsResult, mountsResult = {}, {}, {}
+    local itemsResult, mountsResult = {}, {}, {}
     local hasFoundSomething = false
+    local config = _G.HorstInventoryConfig or {}
 
-    -- 1. สแกน Units (ใช้ระบบเดิม)
-    local unitInventory = playerGui:FindFirstChild("UnitInventory")
-    if unitInventory then
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game); task.wait(0.1); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.H, false, game)
-        task.wait(1.5)
-        local scrollingFrame = findScrollingFrame(unitInventory)
-        if scrollingFrame then
-            scrollingFrame.CanvasPosition = Vector2.new(0, scrollingFrame.AbsoluteCanvasSize.Y)
-            task.wait(0.5)
-            for _, slot in pairs(scrollingFrame:GetChildren()) do
-                if slot:IsA("TextButton") or slot:IsA("ImageButton") then
-                    for _, child in pairs(slot:GetDescendants()) do
-                        if child:IsA("TextLabel") and child.Text ~= "" and not string.find(child.Text, "Lvl") then
-                            local cleanName = string.match(string.gsub(string.gsub(child.Text, "|", ""), ";", ""), "^%s*(.-)%s*$")
-                            local matched = isInWhitelist(cleanName, targetUnitsWhitelist)
-                            if matched then unitsResult[matched] = (unitsResult[matched] or 0) + 1; hasFoundSomething = true; break end
-                        end
-                    end
-                end
-            end
-        end
-        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.H, false, game); task.wait(0.5); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.H, false, game)
-    end
-
-    -- 2. สแกน Items & Mounts (ใช้ Path ที่คุณให้มา)
+    -- 1. เปิด Inventory
     local itemInventory = playerGui:FindFirstChild("ItemInventory")
     if itemInventory then
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game); task.wait(0.1); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.J, false, game)
         task.wait(1.5)
 
-        -- กำหนด Path ตามที่คุณให้มา
+        -- กำหนด Path Mounts เฉพาะเจาะจง
         local baseFrame = itemInventory.Frame.Frame.Frame.Frame.Frame
-        local btnItems = baseFrame.PrimaryButton.Folder.Frame.Frame
         local btnMounts = baseFrame:GetChildren()[5].Folder.Frame.Frame
 
         local function click(btn)
@@ -101,7 +69,7 @@ local function tryComboScanAndSendLog()
                         end
                     end
                     if itemName then
-                        local list = isMounts and targetMountsWhitelist or targetItemsWhitelist
+                        local list = isMounts and (config.Mounts or {}) or (config.Items or {})
                         local matched = isInWhitelist(itemName, list)
                         if matched then
                             if isMounts then mountsResult[matched] = (mountsResult[matched] or 0) + 1
@@ -113,26 +81,26 @@ local function tryComboScanAndSendLog()
             end
         end
 
-        -- สแกน Items
-        pcall(function() click(btnItems) end)
-        task.wait(1.0)
+        -- A. สแกน Items (แท็บที่ถูกเลือกอัตโนมัติ)
         scanTab(false)
 
-        -- สแกน Mounts
+        -- B. สลับแท็บ Mounts ด้วย Path ที่ระบุ
         pcall(function() click(btnMounts) end)
-        task.wait(1.0)
+        task.wait(1.5)
+        
+        -- C. สแกน Mounts
         scanTab(true)
 
+        -- ปิด Inventory
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.J, false, game); task.wait(0.5); VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.J, false, game)
     end
 
-    -- 3. ส่ง Log
+    -- 2. ส่ง Log
     if hasFoundSomething and _G.Horst_SetDescription then
         local logMsg = {}
-        for _, n in ipairs(targetUnitsWhitelist) do if unitsResult[n] then table.insert(logMsg, "👤Units : " .. n) end end
-        for _, n in ipairs(targetItemsWhitelist) do if itemsResult[n] then table.insert(logMsg, "🧰Items : " .. n .. " " .. (itemsResult[n])) end end
-        for _, n in ipairs(targetMountsWhitelist) do if mountsResult[n] then table.insert(logMsg, "🐅Mounts : " .. n) end end
-        _G.Horst_SetDescription(table.concat(logMsg, " / "), HttpService:JSONEncode({Units=unitsResult, Items=itemsResult, Mounts=mountsResult}))
+        for _, n in ipairs(config.Items or {}) do if itemsResult[n] then table.insert(logMsg, "🧰Items : " .. n .. " " .. itemsResult[n]) end end
+        for _, n in ipairs(config.Mounts or {}) do if mountsResult[n] then table.insert(logMsg, "🐅Mounts : " .. n) end end
+        _G.Horst_SetDescription(table.concat(logMsg, " / "), HttpService:JSONEncode({Items=itemsResult, Mounts=mountsResult}))
     end
 end
 
