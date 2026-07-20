@@ -87,7 +87,6 @@ local function tryComboScanAndSendLog()
                         if child:IsA("TextLabel") and child.Text ~= "" then
                             local text = child.Text
                             if string.find(string.lower(text), "x") then
-                                -- [แก้ไขตรงนี้] ใส่ () ครอบเพื่อป้องกัน Error Base out of range
                                 itemCount = tonumber((string.gsub(string.gsub(string.lower(text), "x", ""), ",", ""))) or 1
                             elseif not string.find(text, "Lvl") then
                                 local cleanName = string.match(string.gsub(string.gsub(text, "|", ""), ";", ""), "^%s*(.-)%s*$")
@@ -110,20 +109,21 @@ local function tryComboScanAndSendLog()
 
         scanTab(false) -- สแกน Items
         
-        -- เปลี่ยนแท็บ Mounts
+        -- เปลี่ยนแท็บ Mounts ด้วยวิธีค้นหาที่ยืดหยุ่นขึ้น
         pcall(function()
-            local tabContainer = itemInventory.Frame.Frame.Frame.Frame.Frame
-            for _, c in pairs(tabContainer:GetChildren()) do
-                local l = c:FindFirstChildOfClass("TextLabel") or c:FindFirstChild("Text", true)
-                if l and string.find(string.lower(l.Text), "mounts") then
-                    local btn = c:FindFirstChild("PrimaryButton", true)
+            local found = false
+            -- สแกนหา Object ทุกตัวที่มี Text ว่า "mounts"
+            for _, obj in pairs(itemInventory:GetDescendants()) do
+                if obj:IsA("TextLabel") and string.find(string.lower(obj.Text), "mounts") then
+                    local btn = obj:FindFirstAncestorOfClass("TextButton") or obj:FindFirstAncestorOfClass("ImageButton")
                     if btn then
-                        local x, y = btn.AbsolutePosition.X + btn.AbsoluteSize.X/2, btn.AbsolutePosition.Y + btn.AbsoluteSize.Y/2 + 60
+                        local x, y = btn.AbsolutePosition.X + btn.AbsoluteSize.X/2, btn.AbsolutePosition.Y + btn.AbsoluteSize.Y/2
                         VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 1); task.wait(0.2); VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 1)
-                        break
+                        found = true; break
                     end
                 end
             end
+            if not found then warn("[Scan] ไม่พบปุ่ม Mounts!") end
         end)
         
         task.wait(3.0); scanTab(true) -- สแกน Mounts
