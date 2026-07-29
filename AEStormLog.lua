@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (Finish Color Support Edition)
+-- Script: HorstInventory Pro (Tournament Trophy Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -8,9 +8,11 @@ repeat task.wait() until game.Players.LocalPlayer
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 
+-- โหลดและตั้งค่า StormAccount โมดูล
 local StormAccount = loadstring(game:HttpGet("https://raw.githubusercontent.com/Androssy/Storm-Launcher/refs/heads/main/StormAccount.lua"))()
 StormAccount.SetKey("STORM_nxAH3qRhtPcGafdtdjhh")
 
+-- ผูกเข้ากับบัญชีของผู้เล่นปัจจุบัน
 local Account = StormAccount.new(Players.LocalPlayer.Name)
 
 local function LogFailure(Call, Reason)
@@ -28,9 +30,10 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - Finish Color Mode Active")
+print("[INFO] Script Started - Tournament Trophy Mode Active")
 
 task.spawn(function()
+    -- หน่วงเวลา 10 วินาทีเพื่อให้เกมและข้อมูล PlayerData โหลดเสร็จ
     task.wait(10)
 
     local isFirstRun = true
@@ -49,6 +52,7 @@ task.spawn(function()
             currentGems = rawItems.Gem.Amount or 0
         end
 
+        -- กรองเก็บข้อมูล Units ทั้งหมดของผู้เล่น
         for k, v in pairs(rawUnits) do
             if type(v) == "table" then
                 local name = tostring(v.Asset or v.Name or k)
@@ -56,7 +60,9 @@ task.spawn(function()
             end
         end
 
-        -- 1. Stats
+        -- ========================================================
+        -- 1. รวบรวมข้อมูล Stats (Level, Gems)
+        -- ========================================================
         local statsCfg = CFG.Stats or {}
         if statsCfg.Level and pData.Level then 
             table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level))
@@ -65,7 +71,32 @@ task.spawn(function()
             table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems))
         end
 
-        -- 2. TargetUnits
+        -- ========================================================
+        -- 2. ตรวจสอบโหมด Tournament (เช็ค Toy maker พร้อมอีโมจิถ้วยรางวัลและสีเฉพาะ)
+        -- ========================================================
+        if CFG.Tournament == true then
+            local toyMakerCount = 0
+            for storedName, cnt in pairs(jsonData.units) do
+                if string.lower(storedName) == string.lower("Toy maker") then
+                    toyMakerCount = toyMakerCount + cnt
+                end
+            end
+            
+            local tournamentText = ""
+            if toyMakerCount > 0 then
+                tournamentText = "🏆 ✅ Toy maker"
+            else
+                tournamentText = "🏆 ❌ Toy maker"
+            end
+            
+            -- ดึงสีจาก Palette.Tournament (ถ้าไม่ได้ตั้งค่าไว้ จะใช้สีเหลือง #fbbf24 เป็นค่าเริ่มต้น)
+            local tournamentColor = Palette.Tournament or "#fbbf24"
+            table.insert(parts, Mark(tournamentColor, tournamentText))
+        end
+
+        -- ========================================================
+        -- 3. รวบรวมข้อมูล TargetUnits (ใช้เป็นเงื่อนไข Finished จริง)
+        -- ========================================================
         local targetUnitsCfg = CFG.TargetUnits
         local hasTargetUnits = false
         local allTargetUnitsMet = true
@@ -85,7 +116,6 @@ task.spawn(function()
                 local unitText = ""
                 if currentCount > 0 then
                     unitText = "✅ " .. unitName
-                    allTargetUnitsMet = true
                 else
                     allTargetUnitsMet = false
                     unitText = "❌ " .. unitName
@@ -95,11 +125,13 @@ task.spawn(function()
             end
         end
 
+        -- สร้างข้อความ Description
         local desc = "ไม่มี"
         if #parts > 0 then 
             desc = table.concat(parts, " / ") 
         end
 
+        -- ส่งอัปเดต Description รอบแรกหลังจากรอ 10 วินาที
         local descriptionSaved, setError = Account:SetDescription(desc)
         if not descriptionSaved then
             LogFailure("SetDescription", setError)
@@ -111,14 +143,15 @@ task.spawn(function()
             continue
         end
         
+        -- ========================================================
         -- ตรวจสอบเงื่อนไขจบเกม
+        -- ========================================================
         local targetGems = tonumber(CFG.GemTarget) or 0
         local gemFinished = (targetGems > 0 and currentGems >= targetGems)
         local unitFinished = (hasTargetUnits and allTargetUnitsMet)
 
         if gemFinished or unitFinished then
             local customFinishMsg = CFG.FinishMessage or "Target Reached!"
-            -- ใช้สีจาก Palette.Finish ถ้าไม่มีให้ fallback ไปใช้ Palette.Gems แทน
             local finishColor = Palette.Finish or Palette.Gems
             local markedMsg = Mark(finishColor, customFinishMsg)
             
