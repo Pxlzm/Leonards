@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (Tag-Free Clean Edition)
+-- Script: HorstInventory Pro (TargetUnits Color Fixed Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -30,7 +30,7 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - Clean Tag-Free Mode Active")
+print("[INFO] Script Started - Color Fix Mode Active")
 
 task.spawn(function()
     -- หน่วงเวลา 10 วินาทีเพื่อให้เกมและข้อมูล PlayerData โหลดเสร็จ
@@ -72,7 +72,7 @@ task.spawn(function()
         end
 
         -- ========================================================
-        -- 2. รวบรวมข้อมูล TargetUnits (พร้อมใส่สี Palette.Units)
+        -- 2. รวบรวมข้อมูล TargetUnits (ครอบด้วย Mark(Palette.Units, ...) อย่างถูกต้อง)
         -- ========================================================
         local targetUnitsCfg = CFG.TargetUnits
         local hasTargetUnits = false
@@ -93,16 +93,17 @@ task.spawn(function()
                 local unitText = ""
                 if currentCount > 0 then
                     unitText = "✅ " .. unitName
+                    allTargetUnitsMet = true -- หรือเช็คว่าต้องครบทั้งหมด
                 else
                     allTargetUnitsMet = false
                     unitText = "❌ " .. unitName
                 end
                 
+                -- สั่งครอบสี Palette.Units ที่นี่เพื่อให้มีกรอบสีสวยงาม
                 table.insert(parts, Mark(Palette.Units, unitText))
             end
         end
 
-        -- สร้างข้อความ Description แบบใช้เครื่องหมาย Mark ล้วน ไม่มีแท็ก HTML เกิน
         local desc = "ไม่มี"
         if #parts > 0 then 
             desc = table.concat(parts, " / ") 
