@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (Combined Stats & TargetUnits Edition)
+-- Script: HorstInventory Pro (TargetUnits Colored Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -30,7 +30,7 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - Combined Mode Active")
+print("[INFO] Script Started - Colored TargetUnits Mode Active")
 
 task.spawn(function()
     -- หน่วงเวลา 10 วินาทีเพื่อให้เกมและข้อมูล PlayerData โหลดเสร็จ
@@ -72,7 +72,7 @@ task.spawn(function()
         end
 
         -- ========================================================
-        -- 2. รวบรวมข้อมูล TargetUnits (ถ้ามีตั้งค่าไว้)
+        -- 2. รวบรวมข้อมูล TargetUnits (พร้อมใส่สี Palette.Units)
         -- ========================================================
         local targetUnitsCfg = CFG.TargetUnits
         local hasTargetUnits = false
@@ -90,12 +90,16 @@ task.spawn(function()
                     end
                 end
                 
+                local unitText = ""
                 if currentCount > 0 then
-                    table.insert(parts, "✅ " .. unitName)
+                    unitText = "✅ " .. unitName
                 else
                     allTargetUnitsMet = false
-                    table.insert(parts, "❌ " .. unitName)
+                    unitText = "❌ " .. unitName
                 end
+                
+                -- ครอบสีตาม Palette.Units ที่ตั้งค่าไว้ใน Config
+                table.insert(parts, Mark(Palette.Units, unitText))
             end
         end
 
@@ -118,7 +122,7 @@ task.spawn(function()
         end
         
         -- ========================================================
-        -- ตรวจสอบเงื่อนไขจบเกม (GemTarget หรือ TargetUnits อย่างใดอย่างหนึ่งครบ)
+        -- ตรวจสอบเงื่อนไขจบเกม
         -- ========================================================
         local targetGems = tonumber(CFG.GemTarget) or 0
         local gemFinished = (targetGems > 0 and currentGems >= targetGems)
@@ -128,7 +132,6 @@ task.spawn(function()
             local customFinishMsg = CFG.FinishMessage or "Target Reached!"
             local markedMsg = Mark(Palette.Gems, customFinishMsg)
             
-            -- รวมข้อความแจ้งเตือนสถานะ Finished เข้าไปกับส่วนแสดงผลปกติ
             local finishParts = { markedMsg }
             for _, p in ipairs(parts) do
                 table.insert(finishParts, p)
