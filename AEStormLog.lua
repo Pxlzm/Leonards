@@ -77,7 +77,7 @@ task.spawn(function()
         if CFG.Tournament == true then
             local toyMakerCount = 0
             for storedName, cnt in pairs(jsonData.units) do
-                if string.lower(storedName) == string.lower("Toy maker") then
+                if string.lower(storedName) == string.lower("Sugar") then
                     toyMakerCount = toyMakerCount + cnt
                 end
             end
