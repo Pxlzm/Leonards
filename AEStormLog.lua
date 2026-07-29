@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (TargetUnits Color Fixed Edition)
+-- Script: HorstInventory Pro (Finish Color Support Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -8,11 +8,9 @@ repeat task.wait() until game.Players.LocalPlayer
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 
--- โหลดและตั้งค่า StormAccount โมดูล
 local StormAccount = loadstring(game:HttpGet("https://raw.githubusercontent.com/Androssy/Storm-Launcher/refs/heads/main/StormAccount.lua"))()
 StormAccount.SetKey("STORM_nxAH3qRhtPcGafdtdjhh")
 
--- ผูกเข้ากับบัญชีของผู้เล่นปัจจุบัน
 local Account = StormAccount.new(Players.LocalPlayer.Name)
 
 local function LogFailure(Call, Reason)
@@ -30,10 +28,9 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - Color Fix Mode Active")
+print("[INFO] Script Started - Finish Color Mode Active")
 
 task.spawn(function()
-    -- หน่วงเวลา 10 วินาทีเพื่อให้เกมและข้อมูล PlayerData โหลดเสร็จ
     task.wait(10)
 
     local isFirstRun = true
@@ -52,7 +49,6 @@ task.spawn(function()
             currentGems = rawItems.Gem.Amount or 0
         end
 
-        -- กรองเก็บข้อมูล Units ทั้งหมดของผู้เล่น
         for k, v in pairs(rawUnits) do
             if type(v) == "table" then
                 local name = tostring(v.Asset or v.Name or k)
@@ -60,9 +56,7 @@ task.spawn(function()
             end
         end
 
-        -- ========================================================
-        -- 1. รวบรวมข้อมูล Stats (Level, Gems)
-        -- ========================================================
+        -- 1. Stats
         local statsCfg = CFG.Stats or {}
         if statsCfg.Level and pData.Level then 
             table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level))
@@ -71,9 +65,7 @@ task.spawn(function()
             table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems))
         end
 
-        -- ========================================================
-        -- 2. รวบรวมข้อมูล TargetUnits (ครอบด้วย Mark(Palette.Units, ...) อย่างถูกต้อง)
-        -- ========================================================
+        -- 2. TargetUnits
         local targetUnitsCfg = CFG.TargetUnits
         local hasTargetUnits = false
         local allTargetUnitsMet = true
@@ -93,13 +85,12 @@ task.spawn(function()
                 local unitText = ""
                 if currentCount > 0 then
                     unitText = "✅ " .. unitName
-                    allTargetUnitsMet = true -- หรือเช็คว่าต้องครบทั้งหมด
+                    allTargetUnitsMet = true
                 else
                     allTargetUnitsMet = false
                     unitText = "❌ " .. unitName
                 end
                 
-                -- สั่งครอบสี Palette.Units ที่นี่เพื่อให้มีกรอบสีสวยงาม
                 table.insert(parts, Mark(Palette.Units, unitText))
             end
         end
@@ -109,7 +100,6 @@ task.spawn(function()
             desc = table.concat(parts, " / ") 
         end
 
-        -- ส่งอัปเดต Description รอบแรกหลังจากรอ 10 วินาที
         local descriptionSaved, setError = Account:SetDescription(desc)
         if not descriptionSaved then
             LogFailure("SetDescription", setError)
@@ -121,16 +111,16 @@ task.spawn(function()
             continue
         end
         
-        -- ========================================================
         -- ตรวจสอบเงื่อนไขจบเกม
-        -- ========================================================
         local targetGems = tonumber(CFG.GemTarget) or 0
         local gemFinished = (targetGems > 0 and currentGems >= targetGems)
         local unitFinished = (hasTargetUnits and allTargetUnitsMet)
 
         if gemFinished or unitFinished then
             local customFinishMsg = CFG.FinishMessage or "Target Reached!"
-            local markedMsg = Mark(Palette.Gems, customFinishMsg)
+            -- ใช้สีจาก Palette.Finish ถ้าไม่มีให้ fallback ไปใช้ Palette.Gems แทน
+            local finishColor = Palette.Finish or Palette.Gems
+            local markedMsg = Mark(finishColor, customFinishMsg)
             
             local finishParts = { markedMsg }
             for _, p in ipairs(parts) do
