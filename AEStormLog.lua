@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (Delayed Check & Initial Send Edition)
+-- Script: HorstInventory Pro (Combined Stats & TargetUnits Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -30,10 +30,10 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - Initial Delay Mode Active")
+print("[INFO] Script Started - Combined Mode Active")
 
 task.spawn(function()
-    -- รอเวลา 10 วินาทีแรกเพื่อให้เกมและข้อมูล PlayerData โหลดเสร็จสมบูรณ์ก่อนเริ่มทำงาน
+    -- หน่วงเวลา 10 วินาทีเพื่อให้เกมและข้อมูล PlayerData โหลดเสร็จ
     task.wait(10)
 
     local isFirstRun = true
@@ -61,17 +61,25 @@ task.spawn(function()
         end
 
         -- ========================================================
-        -- ตรวจสอบ TargetUnits (แบบระบุแค่ชื่อ ไม่ต้องใส่จำนวน)
+        -- 1. รวบรวมข้อมูล Stats (Level, Gems ตามที่เปิดใช้งาน)
+        -- ========================================================
+        local statsCfg = CFG.Stats or {}
+        if statsCfg.Level and pData.Level then 
+            table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level))
+        end
+        if statsCfg.Gems and rawItems.Gem then 
+            table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems))
+        end
+
+        -- ========================================================
+        -- 2. รวบรวมข้อมูล TargetUnits (ถ้ามีตั้งค่าไว้)
         -- ========================================================
         local targetUnitsCfg = CFG.TargetUnits
         local hasTargetUnits = false
-        local allTargetUnitsMet = false
-        local targetParts = {}
+        local allTargetUnitsMet = true
 
         if targetUnitsCfg and type(targetUnitsCfg) == "table" and next(targetUnitsCfg) ~= nil then
             hasTargetUnits = true
-            allTargetUnitsMet = true
-            
             for k, v in pairs(targetUnitsCfg) do
                 local unitName = type(k) == "number" and v or k
                 
@@ -83,43 +91,34 @@ task.spawn(function()
                 end
                 
                 if currentCount > 0 then
-                    table.insert(targetParts, "✅ " .. unitName)
+                    table.insert(parts, "✅ " .. unitName)
                 else
                     allTargetUnitsMet = false
-                    table.insert(targetParts, "❌ " .. unitName)
+                    table.insert(parts, "❌ " .. unitName)
                 end
             end
         end
 
-        -- กำหนดรูปแบบ Description
+        -- สร้างข้อความ Description แบบครอบแท็กครั้งเดียวจบ ป้องกันแท็กเกิน
         local desc = "ไม่มี"
-        if hasTargetUnits then
-            desc = "<size:md><b>" .. table.concat(targetParts, " / ") .. "</b></size>"
-        else
-            local statsCfg = CFG.Stats or {}
-            if statsCfg.Level and pData.Level then table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level)) end
-            if statsCfg.Gems and rawItems.Gem then table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems)) end
-            for name, count in pairs(jsonData.units) do table.insert(parts, Mark(Palette.Units, "👤 " .. name .. " " .. count)) end
-            if #parts > 0 then
-                desc = "<size:md><b>" .. table.concat(parts, " / ") .. "</b></size>"
-            end
+        if #parts > 0 then 
+            desc = "<size:md><b>" .. table.concat(parts, " / ") .. "</b></size>" 
         end
 
-        -- ส่งอัปเดต Description รอบแรกทันทีหลังจากรอครบ 10 วิ เพื่อให้หน้าเว็บแสดงผล
+        -- ส่งอัปเดต Description รอบแรกหลังจากรอ 10 วินาที
         local descriptionSaved, setError = Account:SetDescription(desc)
         if not descriptionSaved then
             LogFailure("SetDescription", setError)
         end
 
-        -- หากเป็นการรันรอบแรก ให้ข้ามการเช็ค MarkFinished ไปก่อน 1 รอบ เพื่อให้ส่ง Description ขึ้นตารางให้เห็นก่อน
         if isFirstRun then
             isFirstRun = false
-            task.wait(5) -- รอต่ออีกนิดก่อนเริ่มเช็คเงื่อนไขจริงจัง
+            task.wait(5)
             continue
         end
         
         -- ========================================================
-        -- ตรวจสอบเงื่อนไขจบเกม
+        -- ตรวจสอบเงื่อนไขจบเกม (GemTarget หรือ TargetUnits อย่างใดอย่างหนึ่งครบ)
         -- ========================================================
         local targetGems = tonumber(CFG.GemTarget) or 0
         local gemFinished = (targetGems > 0 and currentGems >= targetGems)
@@ -128,7 +127,14 @@ task.spawn(function()
         if gemFinished or unitFinished then
             local customFinishMsg = CFG.FinishMessage or "Target Reached!"
             local markedMsg = Mark(Palette.Gems, customFinishMsg)
-            local finishDesc = "<size:md><b>" .. markedMsg .. " / " .. desc .. "</b></size>"
+            
+            -- รวมข้อความแจ้งเตือนสถานะ Finished เข้าไปกับส่วนแสดงผลปกติ
+            local finishParts = { markedMsg }
+            for _, p in ipairs(parts) do
+                table.insert(finishParts, p)
+            end
+            
+            local finishDesc = "<size:md><b>" .. table.concat(finishParts, " / ") .. "</b></size>"
             
             print("[Storm] Target condition met. Finishing and switching account.")
             
