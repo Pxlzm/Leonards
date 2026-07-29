@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (Pure Source Code - Fixed Tag Leak)
+-- Script: HorstInventory Pro (Pure Source Code - Clean Tag Wrap)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -30,7 +30,7 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - Fixed Markup Mode Active")
+print("[INFO] Script Started - Clean Tag Mode Active")
 
 task.spawn(function()
     while true do
@@ -121,10 +121,12 @@ task.spawn(function()
             table.insert(parts, Mark(Palette.Mounts, "🦄 " .. name .. " " .. count)) 
         end
 
-        local desc = "Empty"
+        -- สร้างข้อความแบบปกติ (ใช้สำหรับส่งอัปเดตระหว่างฟาร์ม)
+        local rawDesc = "Empty"
         if #parts > 0 then 
-            desc = "<size:md><b>" .. table.concat(parts, " / ") .. "</b></size>" 
+            rawDesc = table.concat(parts, " / ") 
         end
+        local desc = "<size:md><b>" .. rawDesc .. "</b></size>"
         
         -- ========================================================
         -- ตรวจสอบเงื่อนไข: หากเพชรถึงเป้าหมาย ให้ Mark as Finished
@@ -134,13 +136,13 @@ task.spawn(function()
             local customFinishMsg = CFG.FinishMessage or "Target Reached!"
             local markedMsg = Mark(Palette.Gems, customFinishMsg)
             
-            -- เช็คว่ามีข้อมูลส่วนอื่นต่อท้ายไหม ถ้าไม่มีให้แสดงแค่ข้อความ Finished อย่างเดียวเพื่อกันแท็กหลุด
-            local finishDesc = ""
-            if #parts > 0 then
-                finishDesc = "<size:md><b>" .. markedMsg .. " / " .. table.concat(parts, " / ") .. "</b></size>"
-            else
-                finishDesc = "<size:md><b>" .. markedMsg .. "</b></size>"
+            -- รวมข้อความเสร็จสิ้นโดยครอบแท็กปิดหัวท้ายอย่างถูกต้องครั้งเดียวจบ
+            local finishParts = { markedMsg }
+            for _, p in ipairs(parts) do
+                table.insert(finishParts, p)
             end
+            
+            local finishDesc = "<size:md><b>" .. table.concat(finishParts, " / ") .. "</b></size>"
             
             print("[Storm] Gems reached target. Sending clean finish description and switching account.")
             
