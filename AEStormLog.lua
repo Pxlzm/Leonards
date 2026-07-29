@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (Pure Source Code - "ไม่มี" Edition)
+-- Script: HorstInventory Pro (TargetUnits Name-Only Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -30,7 +30,7 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - 'ไม่มี' Mode Active")
+print("[INFO] Script Started - TargetUnits Name-Only Mode Active")
 
 task.spawn(function()
     while true do
@@ -43,106 +43,77 @@ task.spawn(function()
         local jsonData = { units = {}, items = {}, mounts = {}, stats = {} }
         local currentGems = 0
         
-        -- 1. จัดการ Stats หลัก
-        local statsCfg = CFG.Stats or {}
-        if statsCfg.Level and pData.Level then 
-            local text = "⭐ Level " .. pData.Level
-            table.insert(parts, Mark(Palette.Level, text))
-            jsonData.stats.Level = pData.Level
-        end
-        if statsCfg.Gems and rawItems.Gem then 
+        if rawItems.Gem then 
             currentGems = rawItems.Gem.Amount or 0
-            local text = "💎 Gem " .. currentGems
-            table.insert(parts, Mark(Palette.Gems, text))
-            jsonData.stats.Gems = currentGems
-        end
-        if statsCfg.TraitReroll and rawItems.TraitReroll then 
-            local text = "🎲 TraitReroll " .. (rawItems.TraitReroll.Amount or 0)
-            table.insert(parts, Mark(Palette.TraitReroll, text))
-            jsonData.stats.TraitReroll = rawItems.TraitReroll.Amount or 0
-        end
-        if statsCfg.StatReroll and rawItems.StatReroll then 
-            local text = "🔄 StatReroll " .. (rawItems.StatReroll.Amount or 0)
-            table.insert(parts, Mark(Palette.StatReroll, text))
-            jsonData.stats.StatReroll = rawItems.StatReroll.Amount or 0
         end
 
-        -- 2. กรอง Units
+        -- กรองเก็บข้อมูล Units ทั้งหมดของผู้เล่น
         for k, v in pairs(rawUnits) do
             if type(v) == "table" then
                 local name = tostring(v.Asset or v.Name or k)
-                for cfgKey, cfgValue in pairs(CFG.Units or {}) do
-                    local targetName = type(cfgKey) == "number" and cfgValue or cfgKey
-                    local displayName = cfgValue
-                    if string.lower(name) == string.lower(targetName) then
-                        jsonData.units[displayName] = (jsonData.units[displayName] or 0) + 1
-                    end
-                end
+                jsonData.units[name] = (jsonData.units[name] or 0) + 1
             end
         end
-        
-        -- 3. กรอง Items
-        for k, v in pairs(rawItems) do
-            if type(v) == "table" then
-                local name = tostring(k)
-                local amount = tonumber(v.Amount) or 1
-                for cfgKey, cfgValue in pairs(CFG.Items or {}) do
-                    local targetName = type(cfgKey) == "number" and cfgValue or cfgKey
-                    local displayName = cfgValue
-                    if string.lower(name) == string.lower(targetName) then
-                        jsonData.items[displayName] = (jsonData.items[displayName] or 0) + amount
+
+        -- ========================================================
+        -- ตรวจสอบ TargetUnits (แบบระบุแค่ชื่อ ไม่ต้องใส่จำนวน)
+        -- ========================================================
+        local targetUnitsCfg = CFG.TargetUnits
+        local hasTargetUnits = false
+        local allTargetUnitsMet = false
+        local targetParts = {}
+
+        if targetUnitsCfg and type(targetUnitsCfg) == "table" and next(targetUnitsCfg) ~= nil then
+            hasTargetUnits = true
+            allTargetUnitsMet = true
+            
+            -- รองรับทั้งแบบ Array { "Hinata", "Frieren" } หรือ Dictionary { ["Hinata"] = true }
+            for k, v in pairs(targetUnitsCfg) do
+                local unitName = type(k) == "number" and v or k
+                
+                local currentCount = 0
+                for storedName, cnt in pairs(jsonData.units) do
+                    if string.lower(storedName) == string.lower(unitName) then
+                        currentCount = currentCount + cnt
                     end
                 end
-            end
-        end
-        
-        -- 4. กรอง Mounts
-        for k, v in pairs(rawMounts) do
-            if type(v) == "table" then
-                local name = tostring(v.Asset or v.Name or k)
-                for cfgKey, cfgValue in pairs(CFG.Mounts or {}) do
-                    local targetName = type(cfgKey) == "number" and cfgValue or cfgKey
-                    local displayName = cfgValue
-                    if string.lower(name) == string.lower(targetName) then
-                        jsonData.mounts[displayName] = (jsonData.mounts[displayName] or 0) + 1
-                    end
+                
+                if currentCount > 0 then
+                    table.insert(targetParts, "✅ " .. unitName)
+                else
+                    allTargetUnitsMet = false
+                    table.insert(targetParts, "❌ " .. unitName)
                 end
             end
         end
 
-        -- รวมข้อความยูนิต ไอเทม พร้อมใส่สี Markup
-        for name, count in pairs(jsonData.units) do 
-            table.insert(parts, Mark(Palette.Units, "👤 " .. name .. " " .. count)) 
-        end
-        for name, count in pairs(jsonData.items) do 
-            table.insert(parts, Mark(Palette.Items, "📦 " .. name .. " " .. count)) 
-        end
-        for name, count in pairs(jsonData.mounts) do 
-            table.insert(parts, Mark(Palette.Mounts, "🦄 " .. name .. " " .. count)) 
-        end
-
-        -- หากไม่พบข้อมูลตามที่กำหนด ให้แสดงเป็น "ไม่มี"
+        -- กำหนดรูปแบบ Description
         local desc = "ไม่มี"
-        if #parts > 0 then 
-            desc = "<size:md><b>" .. table.concat(parts, " / ") .. "</b></size>" 
+        if hasTargetUnits then
+            desc = "<size:md><b>" .. table.concat(targetParts, " / ") .. "</b></size>"
+        else
+            local statsCfg = CFG.Stats or {}
+            if statsCfg.Level and pData.Level then table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level)) end
+            if statsCfg.Gems and rawItems.Gem then table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems)) end
+            for name, count in pairs(jsonData.units) do table.insert(parts, Mark(Palette.Units, "👤 " .. name .. " " .. count)) end
+            if #parts > 0 then
+                desc = "<size:md><b>" .. table.concat(parts, " / ") .. "</b></size>"
+            end
         end
         
         -- ========================================================
-        -- ตรวจสอบเงื่อนไข: หากเพชรถึงเป้าหมาย ให้ Mark as Finished
+        -- ตรวจสอบเงื่อนไขจบเกม
         -- ========================================================
-        local targetGems = CFG.GemTarget or 150000
-        if currentGems >= targetGems then
+        local targetGems = tonumber(CFG.GemTarget) or 0
+        local gemFinished = (targetGems > 0 and currentGems >= targetGems)
+        local unitFinished = (hasTargetUnits and allTargetUnitsMet)
+
+        if gemFinished or unitFinished then
             local customFinishMsg = CFG.FinishMessage or "Target Reached!"
             local markedMsg = Mark(Palette.Gems, customFinishMsg)
+            local finishDesc = "<size:md><b>" .. markedMsg .. " / " .. desc .. "</b></size>"
             
-            local finishDesc = ""
-            if #parts > 0 then
-                finishDesc = "<size:md><b>" .. markedMsg .. " / " .. table.concat(parts, " / ") .. "</b></size>"
-            else
-                finishDesc = "<size:md><b>" .. markedMsg .. "</b></size>"
-            end
-            
-            print("[Storm] Gems reached target. Sending clean finish description and switching account.")
+            print("[Storm] Target condition met. Finishing and switching account.")
             
             local _, finishedError = Account:MarkFinished(finishDesc)
             if finishedError then
