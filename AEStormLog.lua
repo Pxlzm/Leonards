@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (TargetUnits Name-Only Edition)
+-- Script: HorstInventory Pro (Delayed Check & Initial Send Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -30,9 +30,14 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - TargetUnits Name-Only Mode Active")
+print("[INFO] Script Started - Initial Delay Mode Active")
 
 task.spawn(function()
+    -- รอเวลา 10 วินาทีแรกเพื่อให้เกมและข้อมูล PlayerData โหลดเสร็จสมบูรณ์ก่อนเริ่มทำงาน
+    task.wait(10)
+
+    local isFirstRun = true
+
     while true do
         local pData = Fusion.peek(Dependencies.PlayerData) or {}
         local rawUnits = pData.UnitData or {}
@@ -67,7 +72,6 @@ task.spawn(function()
             hasTargetUnits = true
             allTargetUnitsMet = true
             
-            -- รองรับทั้งแบบ Array { "Hinata", "Frieren" } หรือ Dictionary { ["Hinata"] = true }
             for k, v in pairs(targetUnitsCfg) do
                 local unitName = type(k) == "number" and v or k
                 
@@ -100,6 +104,19 @@ task.spawn(function()
                 desc = "<size:md><b>" .. table.concat(parts, " / ") .. "</b></size>"
             end
         end
+
+        -- ส่งอัปเดต Description รอบแรกทันทีหลังจากรอครบ 10 วิ เพื่อให้หน้าเว็บแสดงผล
+        local descriptionSaved, setError = Account:SetDescription(desc)
+        if not descriptionSaved then
+            LogFailure("SetDescription", setError)
+        end
+
+        -- หากเป็นการรันรอบแรก ให้ข้ามการเช็ค MarkFinished ไปก่อน 1 รอบ เพื่อให้ส่ง Description ขึ้นตารางให้เห็นก่อน
+        if isFirstRun then
+            isFirstRun = false
+            task.wait(5) -- รอต่ออีกนิดก่อนเริ่มเช็คเงื่อนไขจริงจัง
+            continue
+        end
         
         -- ========================================================
         -- ตรวจสอบเงื่อนไขจบเกม
@@ -122,12 +139,6 @@ task.spawn(function()
             break
         end
 
-        -- อัปเดตข้อมูล Description ปกติทุกๆ 15 วินาที
-        local descriptionSaved, setError = Account:SetDescription(desc)
-        if not descriptionSaved then
-            LogFailure("SetDescription", setError)
-        end
-        
         task.wait(15)
     end
 end)
