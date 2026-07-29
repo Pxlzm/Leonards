@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (Tournament Trophy Edition)
+-- Script: StormInventory Pro (StormConfig Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -19,7 +19,8 @@ local function LogFailure(Call, Reason)
     warn(string.format("[Storm] %s failed: %s", Call, tostring(Reason)))
 end
 
-local CFG = _G.HorstInventoryConfig or getgenv().HorstInventoryConfig or {}
+-- เปลี่ยนมารองรับ _G.StormInventoryConfig
+local CFG = _G.StormInventoryConfig or getgenv().StormInventoryConfig or {}
 local Palette = CFG.Palette or {}
 
 local function Mark(color, text)
@@ -30,10 +31,9 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - Tournament Trophy Mode Active")
+print("[INFO] Script Started - StormConfig Mode Active")
 
 task.spawn(function()
-    -- หน่วงเวลา 10 วินาทีเพื่อให้เกมและข้อมูล PlayerData โหลดเสร็จ
     task.wait(10)
 
     local isFirstRun = true
@@ -52,7 +52,6 @@ task.spawn(function()
             currentGems = rawItems.Gem.Amount or 0
         end
 
-        -- กรองเก็บข้อมูล Units ทั้งหมดของผู้เล่น
         for k, v in pairs(rawUnits) do
             if type(v) == "table" then
                 local name = tostring(v.Asset or v.Name or k)
@@ -60,9 +59,7 @@ task.spawn(function()
             end
         end
 
-        -- ========================================================
-        -- 1. รวบรวมข้อมูล Stats (Level, Gems)
-        -- ========================================================
+        -- 1. Stats
         local statsCfg = CFG.Stats or {}
         if statsCfg.Level and pData.Level then 
             table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level))
@@ -71,13 +68,11 @@ task.spawn(function()
             table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems))
         end
 
-        -- ========================================================
-        -- 2. ตรวจสอบโหมด Tournament (เช็ค Toy maker พร้อมอีโมจิถ้วยรางวัลและสีเฉพาะ)
-        -- ========================================================
+        -- 2. Tournament
         if CFG.Tournament == true then
             local toyMakerCount = 0
             for storedName, cnt in pairs(jsonData.units) do
-                if string.lower(storedName) == string.lower("Sugar") then
+                if string.lower(storedName) == string.lower("Toy maker") then
                     toyMakerCount = toyMakerCount + cnt
                 end
             end
@@ -89,14 +84,11 @@ task.spawn(function()
                 tournamentText = "🏆 ❌ Toy maker"
             end
             
-            -- ดึงสีจาก Palette.Tournament (ถ้าไม่ได้ตั้งค่าไว้ จะใช้สีเหลือง #fbbf24 เป็นค่าเริ่มต้น)
             local tournamentColor = Palette.Tournament or "#fbbf24"
             table.insert(parts, Mark(tournamentColor, tournamentText))
         end
 
-        -- ========================================================
-        -- 3. รวบรวมข้อมูล TargetUnits (ใช้เป็นเงื่อนไข Finished จริง)
-        -- ========================================================
+        -- 3. TargetUnits
         local targetUnitsCfg = CFG.TargetUnits
         local hasTargetUnits = false
         local allTargetUnitsMet = true
@@ -125,13 +117,11 @@ task.spawn(function()
             end
         end
 
-        -- สร้างข้อความ Description
         local desc = "ไม่มี"
         if #parts > 0 then 
             desc = table.concat(parts, " / ") 
         end
 
-        -- ส่งอัปเดต Description รอบแรกหลังจากรอ 10 วินาที
         local descriptionSaved, setError = Account:SetDescription(desc)
         if not descriptionSaved then
             LogFailure("SetDescription", setError)
@@ -143,9 +133,7 @@ task.spawn(function()
             continue
         end
         
-        -- ========================================================
         -- ตรวจสอบเงื่อนไขจบเกม
-        -- ========================================================
         local targetGems = tonumber(CFG.GemTarget) or 0
         local gemFinished = (targetGems > 0 and currentGems >= targetGems)
         local unitFinished = (hasTargetUnits and allTargetUnitsMet)
