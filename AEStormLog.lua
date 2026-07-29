@@ -74,7 +74,7 @@ task.spawn(function()
         local targetGems = CFG.GemTarget or 150000
         if currentGems >= targetGems then
             local finishMessage = string.format("Gems reached %d (Target: %d). Finished and switching account.", currentGems, targetGems)
-            print("[Storm] " + finishMessage)
+            print("[Storm] " .. finishMessage) -- แก้ไขจากเครื่องหมาย + เป็น ..
             
             local _, finishedError = Account:MarkFinished(finishMessage)
             if finishedError then
