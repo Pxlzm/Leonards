@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (Pure Source Code)
+-- Script: HorstInventory Pro (Pure Source Code - Fixed Tag Leak)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -19,7 +19,6 @@ local function LogFailure(Call, Reason)
     warn(string.format("[Storm] %s failed: %s", Call, tostring(Reason)))
 end
 
--- ดึง Config จากภายนอกโดยไม่มีการใส่ค่าเริ่มต้นสำรองไว้ใน Source Code
 local CFG = _G.HorstInventoryConfig or getgenv().HorstInventoryConfig or {}
 local Palette = CFG.Palette or {}
 
@@ -31,7 +30,7 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - Separated Config Mode Active")
+print("[INFO] Script Started - Fixed Markup Mode Active")
 
 task.spawn(function()
     while true do
@@ -44,7 +43,7 @@ task.spawn(function()
         local jsonData = { units = {}, items = {}, mounts = {}, stats = {} }
         local currentGems = 0
         
-        -- 1. จัดการ Stats หลัก (พร้อมใส่สี Markup ตาม Palette)
+        -- 1. จัดการ Stats หลัก
         local statsCfg = CFG.Stats or {}
         if statsCfg.Level and pData.Level then 
             local text = "⭐ Level " .. pData.Level
@@ -128,14 +127,22 @@ task.spawn(function()
         end
         
         -- ========================================================
-        -- ตรวจสอบเงื่อนไข: หากเพชรถึงเป้าหมาย ให้ Mark as Finished พร้อมส่ง Description ที่ตั้งค่าไว้
+        -- ตรวจสอบเงื่อนไข: หากเพชรถึงเป้าหมาย ให้ Mark as Finished
         -- ========================================================
         local targetGems = CFG.GemTarget or 150000
         if currentGems >= targetGems then
             local customFinishMsg = CFG.FinishMessage or "Target Reached!"
-            local finishDesc = "<size:md><b>" .. Mark(Palette.Gems, customFinishMsg) .. " / " .. desc .. "</b></size>"
+            local markedMsg = Mark(Palette.Gems, customFinishMsg)
             
-            print("[Storm] Gems reached target. Sending finish description and switching account.")
+            -- เช็คว่ามีข้อมูลส่วนอื่นต่อท้ายไหม ถ้าไม่มีให้แสดงแค่ข้อความ Finished อย่างเดียวเพื่อกันแท็กหลุด
+            local finishDesc = ""
+            if #parts > 0 then
+                finishDesc = "<size:md><b>" .. markedMsg .. " / " .. table.concat(parts, " / ") .. "</b></size>"
+            else
+                finishDesc = "<size:md><b>" .. markedMsg .. "</b></size>"
+            end
+            
+            print("[Storm] Gems reached target. Sending clean finish description and switching account.")
             
             local _, finishedError = Account:MarkFinished(finishDesc)
             if finishedError then
