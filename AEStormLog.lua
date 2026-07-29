@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (StormAccount & Auto-Finish Edition)
+-- Script: HorstInventory Pro (Pure Source Code)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -19,23 +19,19 @@ local function LogFailure(Call, Reason)
     warn(string.format("[Storm] %s failed: %s", Call, tostring(Reason)))
 end
 
-local CFG = _G.HorstInventoryConfig or {
-    Stats = {
-        Level       = false,
-        Gems        = true,
-        TraitReroll = false,
-        StatReroll  = false
-    },
-    Units  = { ["Frieren"] = "Elf Mage" },
-    Items  = { ["Gold"] = "เศษตังหลังตู้" },
-    Mounts = { ["Twotails"] = "หมาวัด" },
-    GemTarget = 150000
-}
+-- ดึง Config จากภายนอกโดยไม่มีการใส่ค่าเริ่มต้นสำรองไว้ใน Source Code
+local CFG = _G.HorstInventoryConfig or getgenv().HorstInventoryConfig or {}
+local Palette = CFG.Palette or {}
+
+local function Mark(color, text)
+    if not color then return text end
+    return string.format("<mark:%s>%s<>", color, text)
+end
 
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - StormAccount & Auto-Finish Active")
+print("[INFO] Script Started - Separated Config Mode Active")
 
 task.spawn(function()
     while true do
@@ -48,42 +44,31 @@ task.spawn(function()
         local jsonData = { units = {}, items = {}, mounts = {}, stats = {} }
         local currentGems = 0
         
-        -- 1. จัดการ Stats หลัก (พร้อม Emoji)[cite: 4]
+        -- 1. จัดการ Stats หลัก (พร้อมใส่สี Markup ตาม Palette)
         local statsCfg = CFG.Stats or {}
         if statsCfg.Level and pData.Level then 
-            table.insert(parts, "⭐ Level " .. pData.Level) 
+            local text = "⭐ Level " .. pData.Level
+            table.insert(parts, Mark(Palette.Level, text))
             jsonData.stats.Level = pData.Level
         end
         if statsCfg.Gems and rawItems.Gem then 
             currentGems = rawItems.Gem.Amount or 0
-            table.insert(parts, "💎 Gem " .. currentGems) 
+            local text = "💎 Gem " .. currentGems
+            table.insert(parts, Mark(Palette.Gems, text))
             jsonData.stats.Gems = currentGems
         end
         if statsCfg.TraitReroll and rawItems.TraitReroll then 
-            table.insert(parts, "🎲 TraitReroll " .. (rawItems.TraitReroll.Amount or 0)) 
+            local text = "🎲 TraitReroll " .. (rawItems.TraitReroll.Amount or 0)
+            table.insert(parts, Mark(Palette.TraitReroll, text))
             jsonData.stats.TraitReroll = rawItems.TraitReroll.Amount or 0
         end
         if statsCfg.StatReroll and rawItems.StatReroll then 
-            table.insert(parts, "🔄 StatReroll " .. (rawItems.StatReroll.Amount or 0)) 
+            local text = "🔄 StatReroll " .. (rawItems.StatReroll.Amount or 0)
+            table.insert(parts, Mark(Palette.StatReroll, text))
             jsonData.stats.StatReroll = rawItems.StatReroll.Amount or 0
         end
 
-        -- ========================================================
-        -- ตรวจสอบเงื่อนไข: หากเพชรถึงเป้าหมาย ให้ Mark as Finished และสลับไอดี
-        -- ========================================================
-        local targetGems = CFG.GemTarget or 150000
-        if currentGems >= targetGems then
-            local finishMessage = string.format("Gems reached %d (Target: %d). Finished and switching account.", currentGems, targetGems)
-            print("[Storm] " .. finishMessage) -- แก้ไขจากเครื่องหมาย + เป็น ..
-            
-            local _, finishedError = Account:MarkFinished(finishMessage)
-            if finishedError then
-                LogFailure("MarkFinished", finishedError)
-            end
-            break
-        end
-
-        -- 2. กรอง Units[cite: 4]
+        -- 2. กรอง Units
         for k, v in pairs(rawUnits) do
             if type(v) == "table" then
                 local name = tostring(v.Asset or v.Name or k)
@@ -97,7 +82,7 @@ task.spawn(function()
             end
         end
         
-        -- 3. กรอง Items[cite: 4]
+        -- 3. กรอง Items
         for k, v in pairs(rawItems) do
             if type(v) == "table" then
                 local name = tostring(k)
@@ -112,7 +97,7 @@ task.spawn(function()
             end
         end
         
-        -- 4. กรอง Mounts[cite: 4]
+        -- 4. กรอง Mounts
         for k, v in pairs(rawMounts) do
             if type(v) == "table" then
                 local name = tostring(v.Asset or v.Name or k)
@@ -126,15 +111,40 @@ task.spawn(function()
             end
         end
 
-        -- รวมข้อความสรุป[cite: 4]
-        for name, count in pairs(jsonData.units) do table.insert(parts, "👤 " .. name .. " " .. count) end
-        for name, count in pairs(jsonData.items) do table.insert(parts, "📦 " .. name .. " " .. count) end
-        for name, count in pairs(jsonData.mounts) do table.insert(parts, "🦄 " .. name .. " " .. count) end
+        -- รวมข้อความยูนิต ไอเทม พร้อมใส่สี Markup
+        for name, count in pairs(jsonData.units) do 
+            table.insert(parts, Mark(Palette.Units, "👤 " .. name .. " " .. count)) 
+        end
+        for name, count in pairs(jsonData.items) do 
+            table.insert(parts, Mark(Palette.Items, "📦 " .. name .. " " .. count)) 
+        end
+        for name, count in pairs(jsonData.mounts) do 
+            table.insert(parts, Mark(Palette.Mounts, "🦄 " .. name .. " " .. count)) 
+        end
 
         local desc = "Empty"
-        if #parts > 0 then desc = table.concat(parts, " / ") end
+        if #parts > 0 then 
+            desc = "<size:md><b>" .. table.concat(parts, " / ") .. "</b></size>" 
+        end
         
-        -- อัปเดตข้อมูลเข้า StormAccount
+        -- ========================================================
+        -- ตรวจสอบเงื่อนไข: หากเพชรถึงเป้าหมาย ให้ Mark as Finished พร้อมส่ง Description ที่ตั้งค่าไว้
+        -- ========================================================
+        local targetGems = CFG.GemTarget or 150000
+        if currentGems >= targetGems then
+            local customFinishMsg = CFG.FinishMessage or "Target Reached!"
+            local finishDesc = "<size:md><b>" .. Mark(Palette.Gems, customFinishMsg) .. " / " .. desc .. "</b></size>"
+            
+            print("[Storm] Gems reached target. Sending finish description and switching account.")
+            
+            local _, finishedError = Account:MarkFinished(finishDesc)
+            if finishedError then
+                LogFailure("MarkFinished", finishedError)
+            end
+            break
+        end
+
+        -- อัปเดตข้อมูล Description ปกติทุกๆ 15 วินาที
         local descriptionSaved, setError = Account:SetDescription(desc)
         if not descriptionSaved then
             LogFailure("SetDescription", setError)
