@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: HorstInventory Pro (TargetUnits Colored Edition)
+-- Script: HorstInventory Pro (Tag-Free Clean Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -30,7 +30,7 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - Colored TargetUnits Mode Active")
+print("[INFO] Script Started - Clean Tag-Free Mode Active")
 
 task.spawn(function()
     -- หน่วงเวลา 10 วินาทีเพื่อให้เกมและข้อมูล PlayerData โหลดเสร็จ
@@ -61,7 +61,7 @@ task.spawn(function()
         end
 
         -- ========================================================
-        -- 1. รวบรวมข้อมูล Stats (Level, Gems ตามที่เปิดใช้งาน)
+        -- 1. รวบรวมข้อมูล Stats (Level, Gems)
         -- ========================================================
         local statsCfg = CFG.Stats or {}
         if statsCfg.Level and pData.Level then 
@@ -98,15 +98,14 @@ task.spawn(function()
                     unitText = "❌ " .. unitName
                 end
                 
-                -- ครอบสีตาม Palette.Units ที่ตั้งค่าไว้ใน Config
                 table.insert(parts, Mark(Palette.Units, unitText))
             end
         end
 
-        -- สร้างข้อความ Description แบบครอบแท็กครั้งเดียวจบ ป้องกันแท็กเกิน
+        -- สร้างข้อความ Description แบบใช้เครื่องหมาย Mark ล้วน ไม่มีแท็ก HTML เกิน
         local desc = "ไม่มี"
         if #parts > 0 then 
-            desc = "<size:md><b>" .. table.concat(parts, " / ") .. "</b></size>" 
+            desc = table.concat(parts, " / ") 
         end
 
         -- ส่งอัปเดต Description รอบแรกหลังจากรอ 10 วินาที
@@ -137,7 +136,7 @@ task.spawn(function()
                 table.insert(finishParts, p)
             end
             
-            local finishDesc = "<size:md><b>" .. table.concat(finishParts, " / ") .. "</b></size>"
+            local finishDesc = table.concat(finishParts, " / ")
             
             print("[Storm] Target condition met. Finishing and switching account.")
             
