@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: StormInventory Pro (StormConfig Edition)
+-- Script: StormInventory Pro (Tournament Sugar Mapping Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -19,7 +19,6 @@ local function LogFailure(Call, Reason)
     warn(string.format("[Storm] %s failed: %s", Call, tostring(Reason)))
 end
 
--- เปลี่ยนมารองรับ _G.StormInventoryConfig
 local CFG = _G.StormInventoryConfig or getgenv().StormInventoryConfig or {}
 local Palette = CFG.Palette or {}
 
@@ -31,7 +30,7 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - StormConfig Mode Active")
+print("[INFO] Script Started - Tournament Sugar Mapping Mode Active")
 
 task.spawn(function()
     task.wait(10)
@@ -68,11 +67,11 @@ task.spawn(function()
             table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems))
         end
 
-        -- 2. Tournament
+        -- 2. Tournament (ค้นหา "Sugar" ในระบบ แต่แสดงผลเป็น "Toy maker")
         if CFG.Tournament == true then
             local toyMakerCount = 0
             for storedName, cnt in pairs(jsonData.units) do
-                if string.lower(storedName) == string.lower("Toy maker") then
+                if string.lower(storedName) == string.lower("Sugar") then
                     toyMakerCount = toyMakerCount + cnt
                 end
             end
