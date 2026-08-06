@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: StormInventory Pro (TargetUnits Log-Only Edition)
+-- Script: StormInventory Pro (Reroll Stats Color Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -30,7 +30,7 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - TargetUnits Log-Only Mode Active")
+print("[INFO] Script Started - Reroll Stats Color Mode Active")
 
 task.spawn(function()
     task.wait(10)
@@ -58,13 +58,41 @@ task.spawn(function()
             end
         end
 
-        -- 1. Stats[cite: 1]
+        -- 1. Stats (Level, Gems, TraitReroll, StatReroll)[cite: 1, 2]
         local statsCfg = CFG.Stats or {}
         if statsCfg.Level and pData.Level then 
             table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level))
         end
         if statsCfg.Gems and rawItems.Gem then 
             table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems))
+        end
+
+        -- เช็คจำนวน TraitReroll จาก ItemData[cite: 1, 2]
+        if statsCfg.TraitReroll then
+            local traitRerollAmount = 0
+            for k, item in pairs(rawItems) do
+                local lowerKey = string.lower(tostring(k))
+                if lowerKey == "traitreroll" or lowerKey == "trait reroll" or lowerKey == "trait_reroll" then
+                    traitRerollAmount = item.Amount or item.Count or 0
+                    break
+                end
+            end
+            local traitRerollColor = Palette.TraitReroll or Palette.Items or "#fbbf24"
+            table.insert(parts, Mark(traitRerollColor, "🔮 Trait Reroll " .. traitRerollAmount))
+        end
+
+        -- เช็คจำนวน StatReroll จาก ItemData[cite: 1, 2]
+        if statsCfg.StatReroll then
+            local statRerollAmount = 0
+            for k, item in pairs(rawItems) do
+                local lowerKey = string.lower(tostring(k))
+                if lowerKey == "statreroll" or lowerKey == "stat reroll" or lowerKey == "stat_reroll" then
+                    statRerollAmount = item.Amount or item.Count or 0
+                    break
+                end
+            end
+            local statRerollColor = Palette.StatReroll or Palette.Items or "#fbbf24"
+            table.insert(parts, Mark(statRerollColor, "🎲 Stat Reroll " .. statRerollAmount))
         end
 
         -- 2. Tournament[cite: 1]
@@ -87,7 +115,7 @@ task.spawn(function()
             table.insert(parts, Mark(tournamentColor, tournamentText))
         end
 
-        -- 3. TargetUnits (เช็คและแสดงผลใน Log อย่างเดียว ไม่ใช้เป็นเงื่อนไข Finished)[cite: 1]
+        -- 3. TargetUnits[cite: 1]
         local targetUnitsCfg = CFG.TargetUnits
         if targetUnitsCfg and type(targetUnitsCfg) == "table" and next(targetUnitsCfg) ~= nil then
             for k, v in pairs(targetUnitsCfg) do
@@ -111,7 +139,7 @@ task.spawn(function()
             end
         end
 
-        -- 4. TargetTraits (เช็ค Trait และใช้เป็นเงื่อนไข Finished หลัก)[cite: 1]
+        -- 4. TargetTraits[cite: 1]
         local targetTraitsCfg = CFG.TargetTraits
         local hasTargetTraits = false
         local allTargetTraitsMet = true
@@ -165,9 +193,7 @@ task.spawn(function()
             continue
         end
         
-        -- ========================================================
-        -- ตรวจสอบเงื่อนไขจบเกม (ตัด TargetUnits ออก เหลือแค่ Gems กับ Traits)[cite: 1]
-        -- ========================================================
+        -- ตรวจสอบเงื่อนไขจบเกม[cite: 1]
         local targetGems = tonumber(CFG.GemTarget) or 0
         local gemFinished = (targetGems > 0 and currentGems >= targetGems)
         local traitFinished = (hasTargetTraits and allTargetTraitsMet)
