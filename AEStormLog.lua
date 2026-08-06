@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: StormInventory Pro (Real Storm Integration - Final)
+-- Script: StormInventory Pro (Fixed Trait & Item Logs)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -8,7 +8,6 @@ repeat task.wait() until game.Players.LocalPlayer
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 
--- ฟังก์ชันสำหรับโหลดโมดูล StormAccount อย่างปลอดภัย 
 local function LoadStormAccountModule()
     local url = "https://raw.githubusercontent.com/Androssy/Storm-Launcher/refs/heads/main/StormAccount.lua"
     local source = nil
@@ -20,9 +19,7 @@ local function LoadStormAccountModule()
         end
     end)
 
-    if successReq and res then
-        source = res
-    else
+    if successReq and res then source = res else
         local successGet, body = pcall(function() return game:HttpGet(url) end)
         if successGet and body then source = body end
     end
@@ -34,7 +31,6 @@ local function LoadStormAccountModule()
     return moduleSuccess and stormModule or nil
 end
 
--- โหลดโมดูล StormAccount
 local StormAccount = LoadStormAccountModule()
 local currentAccount = nil
 
@@ -46,11 +42,10 @@ if StormAccount then
     end)
 end
 
--- Fallback เผื่อโมดูลหลุด
 if not currentAccount then
     currentAccount = {
-        SetDescription = function(self, desc) print("[Storm Fallback] SetDesc: " .. tostring(desc)) return true, nil end,
-        MarkFinished = function(self, desc) print("[Storm Fallback] Finished: " .. tostring(desc)) return true, nil end
+        SetDescription = function(self, desc) return true, nil end,
+        MarkFinished = function(self, desc) return true, nil end
     }
 end
 
@@ -74,7 +69,7 @@ if not successFusion or not successDep then
     return
 end
 
-print("[INFO] Script Started - Final Production Mode")
+print("[INFO] Script Started - Fixed Trait & Item Logs")
 
 task.spawn(function()
     task.wait(5)
@@ -96,30 +91,32 @@ task.spawn(function()
                 end
             end
 
+            -- ฟังก์ชันอัจฉริยะสำหรับค้นหาจำนวนไอเทม (ทะลวง Array & Dictionary)
+            local function GetItemCount(keywords)
+                for k, v in pairs(rawItems) do
+                    local keyStr = string.lower(tostring(k))
+                    local nameStr = type(v) == "table" and string.lower(tostring(v.Name or v.ItemName or "")) or ""
+                    for _, kw in ipairs(keywords) do
+                        if keyStr == kw or string.find(keyStr, kw) or nameStr == kw or string.find(nameStr, kw) then
+                            return type(v) == "table" and (v.Amount or v.Count or v.Value or 0) or tonumber(v) or 0
+                        end
+                    end
+                end
+                return 0
+            end
+
             -- 1. Stats
             local statsCfg = CFG.Stats or {}
             if statsCfg.Level and pData.Level then table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level)) end
             if statsCfg.Gems and rawItems.Gem then table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems)) end
 
             if statsCfg.TraitReroll then
-                local amount = 0
-                for k, item in pairs(rawItems) do
-                    local lowerKey = string.lower(tostring(k))
-                    if lowerKey == "traitreroll" or lowerKey == "trait reroll" or lowerKey == "trait_reroll" then
-                        amount = item.Amount or item.Count or 0; break
-                    end
-                end
+                local amount = GetItemCount({"traitreroll", "trait reroll", "trait_reroll", "trait crystal", "crystal"})
                 table.insert(parts, Mark(Palette.TraitReroll or "#38bdf8", "🔮 Trait Reroll " .. amount))
             end
 
             if statsCfg.StatReroll then
-                local amount = 0
-                for k, item in pairs(rawItems) do
-                    local lowerKey = string.lower(tostring(k))
-                    if lowerKey == "statreroll" or lowerKey == "stat reroll" or lowerKey == "stat_reroll" then
-                        amount = item.Amount or item.Count or 0; break
-                    end
-                end
+                local amount = GetItemCount({"statreroll", "stat reroll", "stat_reroll", "stat cube", "stat shard"})
                 table.insert(parts, Mark(Palette.StatReroll or "#f43f5e", "🎲 Stat Reroll " .. amount))
             end
 
@@ -132,18 +129,44 @@ task.spawn(function()
                 table.insert(parts, Mark(Palette.Tournament or "#fbbf24", toyCount > 0 and "🏆 ✅ Toy maker" or "🏆 ❌ Toy maker"))
             end
 
-            -- 3. TargetUnits (Log Only)
+            -- 3. TargetUnits (และระบบ TraitCheck แบบเปิด True)
+            local checkTraitsLog = (CFG.TraitCheck == true)
+            
             if CFG.TargetUnits and type(CFG.TargetUnits) == "table" then
                 for _, unitName in ipairs(CFG.TargetUnits) do
                     local count = 0
-                    for storedName, _ in pairs(jsonData.units) do
-                        if string.lower(storedName) == string.lower(unitName) then count = count + 1 end
+                    local foundTraits = {}
+                    
+                    for _, uData in pairs(rawUnits) do
+                        if type(uData) == "table" then
+                            local uName = tostring(uData.Asset or uData.Name or "")
+                            if string.lower(uName) == string.lower(unitName) then
+                                count = count + 1
+                                if checkTraitsLog then
+                                    local t = tostring(uData.Trait or uData.EquippedTrait or uData.CustomTrait or uData.RolledTrait or "None")
+                                    if t ~= "" then table.insert(foundTraits, t) end
+                                end
+                            end
+                        end
                     end
-                    table.insert(parts, Mark(Palette.Units, count > 0 and ("✅ " .. unitName) or ("❌ " .. unitName)))
+                    
+                    local unitText = ""
+                    if count > 0 then
+                        unitText = "✅ " .. unitName
+                        if checkTraitsLog and #foundTraits > 0 then
+                            unitText = unitText .. " [" .. table.concat(foundTraits, ", ") .. "]"
+                        end
+                    else
+                        unitText = "❌ " .. unitName
+                        if checkTraitsLog then
+                            unitText = unitText .. " [None]"
+                        end
+                    end
+                    table.insert(parts, Mark(Palette.Units, unitText))
                 end
             end
 
-            -- 4. TargetTraits (เงื่อนไข Finished หลัก)
+            -- 4. TargetTraits (เงื่อนไข Finish เกม - ทำงานเฉพาะเมื่อตั้งเป็นตาราง {})
             local hasTargetTraits = false
             local allTraitsMet = true
             if CFG.TargetTraits and type(CFG.TargetTraits) == "table" and next(CFG.TargetTraits) ~= nil then
@@ -165,6 +188,7 @@ task.spawn(function()
                     end
                     
                     if not match then allTraitsMet = false end
+                    -- แสดง Log แยกออกมาอีกอันสำหรับ Trait ที่กำลังเล็งหา
                     local text = match and string.format("✨ ✅ %s [%s]", targetName, curTrait) or string.format("✨ ❌ %s [%s]", targetName, curTrait)
                     table.insert(parts, Mark(Palette.TraitCheck or "#c084fc", text))
                 end
