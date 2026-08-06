@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: StormInventory Pro (Tournament Sugar Mapping Edition)
+-- Script: StormInventory Pro (TargetUnits Log-Only Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -8,11 +8,11 @@ repeat task.wait() until game.Players.LocalPlayer
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 
--- โหลดและตั้งค่า StormAccount โมดูล
+-- โหลดและตั้งค่า StormAccount โมดูล[cite: 1]
 local StormAccount = loadstring(game:HttpGet("https://raw.githubusercontent.com/Androssy/Storm-Launcher/refs/heads/main/StormAccount.lua"))()
 StormAccount.SetKey("STORM_nxAH3qRhtPcGafdtdjhh")
 
--- ผูกเข้ากับบัญชีของผู้เล่นปัจจุบัน
+-- ผูกเข้ากับบัญชีของผู้เล่นปัจจุบัน[cite: 1]
 local Account = StormAccount.new(Players.LocalPlayer.Name)
 
 local function LogFailure(Call, Reason)
@@ -30,7 +30,7 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - Tournament Sugar Mapping Mode Active")
+print("[INFO] Script Started - TargetUnits Log-Only Mode Active")
 
 task.spawn(function()
     task.wait(10)
@@ -58,7 +58,7 @@ task.spawn(function()
             end
         end
 
-        -- 1. Stats
+        -- 1. Stats[cite: 1]
         local statsCfg = CFG.Stats or {}
         if statsCfg.Level and pData.Level then 
             table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level))
@@ -67,7 +67,7 @@ task.spawn(function()
             table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems))
         end
 
-        -- 2. Tournament (ค้นหา "Sugar" ในระบบ แต่แสดงผลเป็น "Toy maker")
+        -- 2. Tournament[cite: 1]
         if CFG.Tournament == true then
             local toyMakerCount = 0
             for storedName, cnt in pairs(jsonData.units) do
@@ -87,13 +87,9 @@ task.spawn(function()
             table.insert(parts, Mark(tournamentColor, tournamentText))
         end
 
-        -- 3. TargetUnits
+        -- 3. TargetUnits (เช็คและแสดงผลใน Log อย่างเดียว ไม่ใช้เป็นเงื่อนไข Finished)[cite: 1]
         local targetUnitsCfg = CFG.TargetUnits
-        local hasTargetUnits = false
-        local allTargetUnitsMet = true
-
         if targetUnitsCfg and type(targetUnitsCfg) == "table" and next(targetUnitsCfg) ~= nil then
-            hasTargetUnits = true
             for k, v in pairs(targetUnitsCfg) do
                 local unitName = type(k) == "number" and v or k
                 
@@ -108,11 +104,48 @@ task.spawn(function()
                 if currentCount > 0 then
                     unitText = "✅ " .. unitName
                 else
-                    allTargetUnitsMet = false
                     unitText = "❌ " .. unitName
                 end
                 
                 table.insert(parts, Mark(Palette.Units, unitText))
+            end
+        end
+
+        -- 4. TargetTraits (เช็ค Trait และใช้เป็นเงื่อนไข Finished หลัก)[cite: 1]
+        local targetTraitsCfg = CFG.TargetTraits
+        local hasTargetTraits = false
+        local allTargetTraitsMet = true
+
+        if targetTraitsCfg and type(targetTraitsCfg) == "table" and next(targetTraitsCfg) ~= nil then
+            hasTargetTraits = true
+            for targetName, desiredTrait in pairs(targetTraitsCfg) do
+                local foundMatch = false
+                local currentTraitFound = "None"
+                
+                for _, unitData in pairs(rawUnits) do
+                    if type(unitData) == "table" then
+                        local uName = tostring(unitData.Asset or unitData.Name or "")
+                        if string.lower(uName) == string.lower(targetName) then
+                            local t = unitData.Trait or unitData.EquippedTrait or unitData.CustomTrait or unitData.RolledTrait or "None"
+                            currentTraitFound = tostring(t)
+                            if string.lower(currentTraitFound) == string.lower(desiredTrait) then
+                                foundMatch = true
+                                break
+                            end
+                        end
+                    end
+                end
+                
+                local traitText = ""
+                if foundMatch then
+                    traitText = "✨ ✅ " .. targetName .. " [" .. currentTraitFound .. "]"
+                else
+                    allTargetTraitsMet = false
+                    traitText = "✨ ❌ " .. targetName .. " [" .. currentTraitFound .. "]"
+                end
+                
+                local traitColor = Palette.TraitCheck or Palette.Units or "#a855f7"
+                table.insert(parts, Mark(traitColor, traitText))
             end
         end
 
@@ -132,12 +165,14 @@ task.spawn(function()
             continue
         end
         
-        -- ตรวจสอบเงื่อนไขจบเกม
+        -- ========================================================
+        -- ตรวจสอบเงื่อนไขจบเกม (ตัด TargetUnits ออก เหลือแค่ Gems กับ Traits)[cite: 1]
+        -- ========================================================
         local targetGems = tonumber(CFG.GemTarget) or 0
         local gemFinished = (targetGems > 0 and currentGems >= targetGems)
-        local unitFinished = (hasTargetUnits and allTargetUnitsMet)
+        local traitFinished = (hasTargetTraits and allTargetTraitsMet)
 
-        if gemFinished or unitFinished then
+        if gemFinished or traitFinished then
             local customFinishMsg = CFG.FinishMessage or "Target Reached!"
             local finishColor = Palette.Finish or Palette.Gems
             local markedMsg = Mark(finishColor, customFinishMsg)
@@ -149,7 +184,7 @@ task.spawn(function()
             
             local finishDesc = table.concat(finishParts, " / ")
             
-            print("[Storm] Target condition met. Finishing and switching account.")
+            print("[Storm] Target condition met. Finishing and switching account.")[cite: 1]
             
             local _, finishedError = Account:MarkFinished(finishDesc)
             if finishedError then
