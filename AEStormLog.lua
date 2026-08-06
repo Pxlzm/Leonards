@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: StormInventory Pro (Standalone Account Edition)
+-- Script: StormInventory Pro (Standalone Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -8,15 +8,13 @@ repeat task.wait() until game.Players.LocalPlayer
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 
--- ระบบจัดการ Account แบบ Standalone (ป้องกัน Error จากลิงก์ภายนอกที่ตายไปแล้ว)
+-- ระบบจัดการ Account แบบ Standalone (ตัดปัญหาโมดูลภายนอกเป็น nil)
 local Account = {}
 function Account.new(playerName)
     local self = {}
     
     function self:SetDescription(desc)
-        -- จำลองการอัปเดต Description (หรือปรับเชื่อมต่อกับระบบเกมหลักถ้ามี)
-        local success, err = pcall(function()
-            -- หากเกมมีระบบเซฟ Description เฉพาะตัว สามารถใส่ API ตรงนี้เพิ่มได้
+        pcall(function()
             print("[Storm] SetDescription -> " .. tostring(desc))
         end)
         return true, nil
@@ -24,11 +22,6 @@ function Account.new(playerName)
 
     function self:MarkFinished(desc)
         print("[Storm] MarkFinished -> " .. tostring(desc))
-        -- โค้ดสำหรับทำกระบวนการจบเกมหรือสลับไอดี
-        pcall(function()
-            -- ตัวอย่างการออกจากเกมหรือรีเซ็ตเมื่อทำเควสเสร็จ
-            -- game:GetService("TeleportService"):Teleport(game.PlaceId, Players.LocalPlayer)
-        end)
         return true, nil
     end
 
@@ -80,7 +73,7 @@ task.spawn(function()
             end
         end
 
-        -- 1. Stats[cite: 1, 2]
+        -- 1. Stats
         local statsCfg = CFG.Stats or {}
         if statsCfg.Level and pData.Level then 
             table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level))
@@ -115,7 +108,7 @@ task.spawn(function()
             table.insert(parts, Mark(statRerollColor, "🎲 Stat Reroll " .. statRerollAmount))
         end
 
-        -- 2. Tournament[cite: 1]
+        -- 2. Tournament
         if CFG.Tournament == true then
             local toyMakerCount = 0
             for storedName, cnt in pairs(jsonData.units) do
@@ -135,7 +128,7 @@ task.spawn(function()
             table.insert(parts, Mark(tournamentColor, tournamentText))
         end
 
-        -- 3. TargetUnits[cite: 1]
+        -- 3. TargetUnits (Log-only)
         local targetUnitsCfg = CFG.TargetUnits
         if targetUnitsCfg and type(targetUnitsCfg) == "table" and next(targetUnitsCfg) ~= nil then
             for k, v in pairs(targetUnitsCfg) do
@@ -159,7 +152,7 @@ task.spawn(function()
             end
         end
 
-        -- 4. TargetTraits[cite: 1]
+        -- 4. TargetTraits
         local targetTraitsCfg = CFG.TargetTraits
         local hasTargetTraits = false
         local allTargetTraitsMet = true
@@ -213,7 +206,7 @@ task.spawn(function()
             continue
         end
         
-        -- ตรวจสอบเงื่อนไขจบเกม[cite: 1]
+        -- ตรวจสอบเงื่อนไขจบเกม
         local targetGems = tonumber(CFG.GemTarget) or 0
         local gemFinished = (targetGems > 0 and currentGems >= targetGems)
         local traitFinished = (hasTargetTraits and allTargetTraitsMet)
@@ -230,7 +223,7 @@ task.spawn(function()
             
             local finishDesc = table.concat(finishParts, " / ")
             
-            print("[Storm] Target condition met. Finishing and switching account.")[cite: 1]
+            print("[Storm] Target condition met. Finishing and switching account.")
             
             local _, finishedError = currentAccount:MarkFinished(finishDesc)
             if finishedError then
