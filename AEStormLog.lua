@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: StormInventory Pro (Fixed Trait & Item Logs)
+-- Script: StormInventory Pro (Trait Reroll Limit Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -69,7 +69,7 @@ if not successFusion or not successDep then
     return
 end
 
-print("[INFO] Script Started - Fixed Trait & Item Logs")
+print("[INFO] Script Started - Trait Reroll Limit Active")
 
 task.spawn(function()
     task.wait(5)
@@ -91,7 +91,7 @@ task.spawn(function()
                 end
             end
 
-            -- ฟังก์ชันอัจฉริยะสำหรับค้นหาจำนวนไอเทม (ทะลวง Array & Dictionary)
+            -- ฟังก์ชันอัจฉริยะสำหรับค้นหาจำนวนไอเทม
             local function GetItemCount(keywords)
                 for k, v in pairs(rawItems) do
                     local keyStr = string.lower(tostring(k))
@@ -105,19 +105,21 @@ task.spawn(function()
                 return 0
             end
 
+            -- คำนวณ Reroll ล่วงหน้าเพื่อใช้เช็คเงื่อนไขจบเกม
+            local currentTraitReroll = GetItemCount({"traitreroll", "trait reroll", "trait_reroll", "trait crystal", "crystal"})
+            local currentStatReroll = GetItemCount({"statreroll", "stat reroll", "stat_reroll", "stat cube", "stat shard"})
+
             -- 1. Stats
             local statsCfg = CFG.Stats or {}
             if statsCfg.Level and pData.Level then table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level)) end
             if statsCfg.Gems and rawItems.Gem then table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems)) end
 
             if statsCfg.TraitReroll then
-                local amount = GetItemCount({"traitreroll", "trait reroll", "trait_reroll", "trait crystal", "crystal"})
-                table.insert(parts, Mark(Palette.TraitReroll or "#38bdf8", "🔮 Trait Reroll " .. amount))
+                table.insert(parts, Mark(Palette.TraitReroll or "#38bdf8", "🔮 Trait Reroll " .. currentTraitReroll))
             end
 
             if statsCfg.StatReroll then
-                local amount = GetItemCount({"statreroll", "stat reroll", "stat_reroll", "stat cube", "stat shard"})
-                table.insert(parts, Mark(Palette.StatReroll or "#f43f5e", "🎲 Stat Reroll " .. amount))
+                table.insert(parts, Mark(Palette.StatReroll or "#f43f5e", "🎲 Stat Reroll " .. currentStatReroll))
             end
 
             -- 2. Tournament
@@ -166,7 +168,7 @@ task.spawn(function()
                 end
             end
 
-            -- 4. TargetTraits (เงื่อนไข Finish เกม - ทำงานเฉพาะเมื่อตั้งเป็นตาราง {})
+            -- 4. TargetTraits (เงื่อนไข Finish เกม)
             local hasTargetTraits = false
             local allTraitsMet = true
             if CFG.TargetTraits and type(CFG.TargetTraits) == "table" and next(CFG.TargetTraits) ~= nil then
@@ -188,28 +190,38 @@ task.spawn(function()
                     end
                     
                     if not match then allTraitsMet = false end
-                    -- แสดง Log แยกออกมาอีกอันสำหรับ Trait ที่กำลังเล็งหา
                     local text = match and string.format("✨ ✅ %s [%s]", targetName, curTrait) or string.format("✨ ❌ %s [%s]", targetName, curTrait)
                     table.insert(parts, Mark(Palette.TraitCheck or "#c084fc", text))
                 end
             end
 
             local desc = #parts > 0 and table.concat(parts, " / ") or "ไม่มี"
-            
-            -- อัปเดตข้อมูลขึ้น Storm
             local ok, errStr = currentAccount:SetDescription(desc)
             if not ok then LogFailure("SetDescription", errStr) end
 
-            -- 5. เงื่อนไขจบเกม
+            -- 5. เงื่อนไขจบเกม (เพิ่มเช็คเซฟตี้โควตาสุ่ม)
             local targetGems = tonumber(CFG.GemTarget) or 0
+            local stopRerollLimit = tonumber(CFG.StopAtTraitReroll) or 0
+            
             local gemFinished = (targetGems > 0 and currentGems >= targetGems)
             local traitFinished = (hasTargetTraits and allTraitsMet)
+            -- บังคับจบถ้าตั้งโควตาไว้ และไอเทม Reroll เหลือน้อยกว่าหรือเท่ากับที่กำหนด
+            local rerollLimitReached = (stopRerollLimit > 0 and currentTraitReroll <= stopRerollLimit)
 
-            if gemFinished or traitFinished then
-                local finishParts = { Mark(Palette.Finish or "#ec4899", CFG.FinishMessage or "Target Reached!") }
+            if gemFinished or traitFinished or rerollLimitReached then
+                local customFinishMsg = CFG.FinishMessage or "Target Reached!"
+                local finishColor = Palette.Finish or "#ec4899"
+                
+                -- เปลี่ยนข้อความเตือนถ้าจบเพราะ Reroll หมด
+                if rerollLimitReached and not traitFinished then
+                    customFinishMsg = "⚠️ Stopped (Reroll Limit)"
+                    finishColor = "#ef4444" -- สีแดงแจ้งเตือน
+                end
+                
+                local finishParts = { Mark(finishColor, customFinishMsg) }
                 for _, p in ipairs(parts) do table.insert(finishParts, p) end
                 
-                print("[Storm] Target met! Switching account...")
+                print("[Storm] Target met or limit reached! Switching account...")
                 currentAccount:MarkFinished(table.concat(finishParts, " / "))
                 return
             end
