@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: StormInventory Pro (Trait Reroll Limit Edition)
+-- Script: StormInventory Pro (Trait Reroll Limit Toggle)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -69,7 +69,7 @@ if not successFusion or not successDep then
     return
 end
 
-print("[INFO] Script Started - Trait Reroll Limit Active")
+print("[INFO] Script Started - Trait Reroll Limit Toggle Active")
 
 task.spawn(function()
     task.wait(5)
@@ -91,7 +91,6 @@ task.spawn(function()
                 end
             end
 
-            -- ฟังก์ชันอัจฉริยะสำหรับค้นหาจำนวนไอเทม
             local function GetItemCount(keywords)
                 for k, v in pairs(rawItems) do
                     local keyStr = string.lower(tostring(k))
@@ -105,7 +104,6 @@ task.spawn(function()
                 return 0
             end
 
-            -- คำนวณ Reroll ล่วงหน้าเพื่อใช้เช็คเงื่อนไขจบเกม
             local currentTraitReroll = GetItemCount({"traitreroll", "trait reroll", "trait_reroll", "trait crystal", "crystal"})
             local currentStatReroll = GetItemCount({"statreroll", "stat reroll", "stat_reroll", "stat cube", "stat shard"})
 
@@ -131,7 +129,7 @@ task.spawn(function()
                 table.insert(parts, Mark(Palette.Tournament or "#fbbf24", toyCount > 0 and "🏆 ✅ Toy maker" or "🏆 ❌ Toy maker"))
             end
 
-            -- 3. TargetUnits (และระบบ TraitCheck แบบเปิด True)
+            -- 3. TargetUnits 
             local checkTraitsLog = (CFG.TraitCheck == true)
             
             if CFG.TargetUnits and type(CFG.TargetUnits) == "table" then
@@ -168,7 +166,7 @@ task.spawn(function()
                 end
             end
 
-            -- 4. TargetTraits (เงื่อนไข Finish เกม)
+            -- 4. TargetTraits
             local hasTargetTraits = false
             local allTraitsMet = true
             if CFG.TargetTraits and type(CFG.TargetTraits) == "table" and next(CFG.TargetTraits) ~= nil then
@@ -199,23 +197,26 @@ task.spawn(function()
             local ok, errStr = currentAccount:SetDescription(desc)
             if not ok then LogFailure("SetDescription", errStr) end
 
-            -- 5. เงื่อนไขจบเกม (เพิ่มเช็คเซฟตี้โควตาสุ่ม)
+            -- 5. เงื่อนไขจบเกม 
             local targetGems = tonumber(CFG.GemTarget) or 0
-            local stopRerollLimit = tonumber(CFG.StopAtTraitReroll) or 0
+            
+            -- ระบบเซฟตี้แบบเปิด/ปิด
+            local useRerollLimit = (CFG.StopAtTraitReroll == true)
+            local stopRerollLimit = tonumber(CFG.TraitRerollLimit) or 0
             
             local gemFinished = (targetGems > 0 and currentGems >= targetGems)
             local traitFinished = (hasTargetTraits and allTraitsMet)
-            -- บังคับจบถ้าตั้งโควตาไว้ และไอเทม Reroll เหลือน้อยกว่าหรือเท่ากับที่กำหนด
-            local rerollLimitReached = (stopRerollLimit > 0 and currentTraitReroll <= stopRerollLimit)
+            
+            -- ตรวจสอบว่าเปิดใช้งานเซฟตี้หรือไม่ และไอเทมน้อยกว่าหรือเท่ากับที่กำหนดไหม
+            local rerollLimitReached = (useRerollLimit and currentTraitReroll <= stopRerollLimit)
 
             if gemFinished or traitFinished or rerollLimitReached then
                 local customFinishMsg = CFG.FinishMessage or "Target Reached!"
                 local finishColor = Palette.Finish or "#ec4899"
                 
-                -- เปลี่ยนข้อความเตือนถ้าจบเพราะ Reroll หมด
                 if rerollLimitReached and not traitFinished then
                     customFinishMsg = "⚠️ Stopped (Reroll Limit)"
-                    finishColor = "#ef4444" -- สีแดงแจ้งเตือน
+                    finishColor = "#ef4444" 
                 end
                 
                 local finishParts = { Mark(finishColor, customFinishMsg) }
