@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: StormInventory Pro (Reroll Stats Color Edition)
+-- Script: StormInventory Pro (Safe Load Edition)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -8,8 +8,28 @@ repeat task.wait() until game.Players.LocalPlayer
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 
--- โหลดและตั้งค่า StormAccount โมดูล[cite: 1]
-local StormAccount = loadstring(game:HttpGet("https://raw.githubusercontent.com/Androssy/Storm-Launcher/refs/heads/main/StormAccount.lua"))()
+-- โหลดและตั้งค่า StormAccount โมดูล พร้อมระบบป้องกันค่า nil
+local success, response = pcall(function()
+    return game:HttpGet("https://raw.githubusercontent.com/Androssy/Storm-Launcher/refs/heads/main/StormAccount.lua")
+end)
+
+if not success or not response then
+    warn("[Storm] ไม่สามารถดาวน์โหลดไฟล์ StormAccount.lua ได้ กรุณาตรวจสอบ URL หรือการเชื่อมต่อ")
+    return
+end
+
+local loadFunc, loadErr = loadstring(response)
+if not loadFunc then
+    warn("[Storm] โหลดโค้ด StormAccount.lua ไม่สำเร็จ: " .. tostring(loadErr))
+    return
+end
+
+local StormAccount = loadFunc()
+if not StormAccount then
+    warn("[Storm] โมดูล StormAccount ส่งค่ากลับมาเป็น nil")
+    return
+end
+
 StormAccount.SetKey("STORM_nxAH3qRhtPcGafdtdjhh")
 
 -- ผูกเข้ากับบัญชีของผู้เล่นปัจจุบัน[cite: 1]
@@ -30,7 +50,7 @@ end
 local Fusion = require(game.ReplicatedStorage.FusionPackage.Fusion)
 local Dependencies = require(game.ReplicatedStorage.FusionPackage.Dependencies)
 
-print("[INFO] Script Started - Reroll Stats Color Mode Active")
+print("[INFO] Script Started - Safe Load Mode Active")
 
 task.spawn(function()
     task.wait(10)
@@ -58,7 +78,7 @@ task.spawn(function()
             end
         end
 
-        -- 1. Stats (Level, Gems, TraitReroll, StatReroll)[cite: 1, 2]
+        -- 1. Stats[cite: 1, 2]
         local statsCfg = CFG.Stats or {}
         if statsCfg.Level and pData.Level then 
             table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level))
@@ -67,7 +87,6 @@ task.spawn(function()
             table.insert(parts, Mark(Palette.Gems, "💎 Gem " .. currentGems))
         end
 
-        -- เช็คจำนวน TraitReroll จาก ItemData[cite: 1, 2]
         if statsCfg.TraitReroll then
             local traitRerollAmount = 0
             for k, item in pairs(rawItems) do
@@ -81,7 +100,6 @@ task.spawn(function()
             table.insert(parts, Mark(traitRerollColor, "🔮 Trait Reroll " .. traitRerollAmount))
         end
 
-        -- เช็คจำนวน StatReroll จาก ItemData[cite: 1, 2]
         if statsCfg.StatReroll then
             local statRerollAmount = 0
             for k, item in pairs(rawItems) do
