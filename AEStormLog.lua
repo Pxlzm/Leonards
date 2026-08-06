@@ -1,5 +1,5 @@
 -- ========================================================
--- Script: StormInventory Pro (Final Production Version)
+-- Script: StormInventory Pro (Real Storm Integration)
 -- ========================================================
 
 repeat task.wait() until game:IsLoaded()
@@ -8,25 +8,72 @@ repeat task.wait() until game.Players.LocalPlayer
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 
--- ระบบจัดการ Account แบบ Standalone
-local Account = {}
-function Account.new(playerName)
-    local self = {}
-    function self:SetDescription(desc)
-        pcall(function()
-            print("[Storm Log] อัปเดต Description สำเร็จ -> " .. tostring(desc))
+-- ฟังก์ชันสำหรับโหลดโมดูล StormAccount อย่างปลอดภัย (รองรับทั้ง game:HttpGet และ request ของ Executor)
+local function LoadStormAccountModule()
+    local url = "https://raw.githubusercontent.com/Androssy/Storm-Launcher/refs/heads/main/StormAccount.lua"
+    local source = nil
+
+    -- ลองใช้ request ของ Executor ก่อน (แก้ปัญหาโดนบล็อก HttpGet)
+    local successReq, res = pcall(function()
+        if request then
+            local response = request({ Url = url, Method = "GET" })
+            if response and response.Body then
+                return response.Body
+            end
+        end
+    end)
+
+    if successReq and res then
+        source = res
+    else
+        -- ถ้าไม่มี request ให้ใช้ game:HttpGet แทน
+        local successGet, body = pcall(function()
+            return game:HttpGet(url)
         end)
-        return true, nil
+        if successGet and body then
+            source = body
+        end
     end
 
-    function self:MarkFinished(desc)
-        print("[Storm Finished] เป้าหมายบรรลุแล้ว! -> " .. tostring(desc))
-        return true, nil
+    if not source then
+        warn("[Storm Error] ไม่สามารถดึงข้อมูล StormAccount.lua ได้!")
+        return nil
     end
-    return self
+
+    local loadFunc, loadErr = loadstring(source)
+    if not loadFunc then
+        warn("[Storm Error] แปลงโค้ด StormAccount ไม่สำเร็จ: " .. tostring(loadErr))
+        return nil
+    end
+
+    local moduleSuccess, stormModule = pcall(loadFunc)
+    if not moduleSuccess or not stormModule then
+        warn("[Storm Error] รันโมดูล StormAccount ไม่สำเร็จ")
+        return nil
+    end
+
+    return stormModule
 end
 
-local currentAccount = Account.new(Players.LocalPlayer.Name)
+-- โหลดโมดูล StormAccount
+local StormAccount = LoadStormAccountModule()
+local currentAccount = nil
+
+if StormAccount then
+    pcall(function()
+        StormAccount.SetKey("STORM_nxAH3qRhtPcGafdtdjhh")
+        currentAccount = StormAccount.new(Players.LocalPlayer.Name)
+        print("[Storm] เชื่อมต่อกับระบบ Storm สำเร็จ!")
+    end)
+end
+
+-- Fallback เผื่อโมดูลหลุด จะได้ไม่ Error
+if not currentAccount then
+    currentAccount = {
+        SetDescription = function(self, desc) print("[Storm Fallback] SetDesc: " .. tostring(desc)) return true, nil end,
+        MarkFinished = function(self, desc) print("[Storm Fallback] Finished: " .. tostring(desc)) return true, nil end
+    }
+end
 
 local function LogFailure(Call, Reason)
     warn(string.format("[Storm] %s failed: %s", Call, tostring(Reason)))
@@ -40,7 +87,7 @@ local function Mark(color, text)
     return string.format("<mark:%s>%s<>", color, text)
 end
 
--- โหลด Fusion และ Dependencies ด้วยความปลอดภัย
+-- โหลด Fusion และ Dependencies
 local successFusion, Fusion = pcall(function()
     return require(game.ReplicatedStorage:WaitForChild("FusionPackage", 5).Fusion)
 end)
@@ -54,10 +101,10 @@ if not successFusion or not successDep then
     return
 end
 
-print("[INFO] Script Started - Production Mode Active")
+print("[INFO] Script Started - Real Storm Mode Active")
 
 task.spawn(function()
-    task.wait(5) -- รอให้ข้อมูลตัวละครเสถียรหลังเข้าเกม
+    task.wait(5)
 
     while true do
         local successLoop, err = pcall(function()
@@ -80,7 +127,7 @@ task.spawn(function()
                 end
             end
 
-            -- 1. Stats (Level, Gems, TraitReroll, StatReroll)
+            -- 1. Stats
             local statsCfg = CFG.Stats or {}
             if statsCfg.Level and pData.Level then 
                 table.insert(parts, Mark(Palette.Level, "⭐ Level " .. pData.Level))
@@ -113,7 +160,7 @@ task.spawn(function()
                 table.insert(parts, Mark(Palette.StatReroll or "#f43f5e", "🎲 Stat Reroll " .. statRerollAmount))
             end
 
-            -- 2. Tournament (Sugar -> Toy maker)
+            -- 2. Tournament
             if CFG.Tournament == true then
                 local toyMakerCount = 0
                 for storedName, _ in pairs(jsonData.units) do
@@ -125,7 +172,7 @@ task.spawn(function()
                 table.insert(parts, Mark(Palette.Tournament or "#fbbf24", tournamentText))
             end
 
-            -- 3. TargetUnits (Log-only เช็คสถานะอย่างเดียว ไม่สั่ง Finished)
+            -- 3. TargetUnits (Log-only)
             local targetUnitsCfg = CFG.TargetUnits
             if targetUnitsCfg and type(targetUnitsCfg) == "table" and next(targetUnitsCfg) ~= nil then
                 for _, unitName in ipairs(targetUnitsCfg) do
@@ -140,7 +187,7 @@ task.spawn(function()
                 end
             end
 
-            -- 4. TargetTraits (เช็ค Trait และใช้เป็นเงื่อนไข Finished หลัก)
+            -- 4. TargetTraits
             local targetTraitsCfg = CFG.TargetTraits
             local hasTargetTraits = false
             local allTargetTraitsMet = true
@@ -177,9 +224,14 @@ task.spawn(function()
             end
 
             local desc = #parts > 0 and table.concat(parts, " / ") or "ไม่มี"
-            currentAccount:SetDescription(desc)
+            
+            -- ส่งข้อมูลเข้า Storm Account จริงๆ ตรงนี้
+            local descriptionSaved, setError = currentAccount:SetDescription(desc)
+            if not descriptionSaved then
+                LogFailure("SetDescription", setError)
+            end
 
-            -- 5. ตรวจสอบเงื่อนไขจบเกม (GemTarget หรือ TargetTraits)
+            -- 5. ตรวจสอบเงื่อนไขจบเกม
             local targetGems = tonumber(CFG.GemTarget) or 0
             local gemFinished = (targetGems > 0 and currentGems >= targetGems)
             local traitFinished = (hasTargetTraits and allTargetTraitsMet)
@@ -195,8 +247,13 @@ task.spawn(function()
                 end
                 
                 local finishDesc = table.concat(finishParts, " / ")
-                currentAccount:MarkFinished(finishDesc)
-                return -- จบลูปทำงาน
+                
+                print("[Storm] Target condition met. Marking finished and switching account.")
+                local _, finishedError = currentAccount:MarkFinished(finishDesc)
+                if finishedError then
+                    LogFailure("MarkFinished", finishedError)
+                end
+                break
             end
         end)
 
@@ -204,6 +261,6 @@ task.spawn(function()
             warn("[Storm Loop Error]: " .. tostring(err))
         end
 
-        task.wait(15) -- วนเช็คทุกๆ 15 วินาที
+        task.wait(15)
     end
 end)
