@@ -1,5 +1,5 @@
 -- ============================================================
---  Aimia | Storm Inventory Logger  (Anime Expeditions)
+--  Storm Inventory Logger  (Anime Expeditions)
 --
 --  Publishes live account progress to Storm Launcher and marks
 --  the account finished once a configured target is reached.
@@ -25,11 +25,11 @@ local Palette  = CFG.Palette or {}
 local INTERVAL = math.max(tonumber(CFG.Interval) or 15, 5)
 
 local function Log(message)
-    print("[Aimia] " .. message)
+    print("[Storm] " .. message)
 end
 
 local function LogWarn(message)
-    warn("[Aimia] " .. message)
+    warn("[Storm] " .. message)
 end
 
 -- ============================================================
