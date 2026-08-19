@@ -221,11 +221,25 @@ end
 --  Description formatting
 -- ============================================================
 
+-- Storm's description parser is a tag stack: every tag opens with <name:value>
+-- or <b>, and each one is closed by a bare <>. Tags nest, e.g.
+--   <b><size:lg><mark:#4ade80>text<><><>
+local BOLD_TEXT = CFG.BoldText == true
+local TEXT_SIZE = type(CFG.TextSize) == "string" and CFG.TextSize ~= "" and CFG.TextSize or nil
+
+-- Colour is applied innermost so the hex inside <mark:...> is never wrapped
+-- by another tag, then size, then bold on the outside.
 local function Mark(color, text)
-    if not color then
-        return text
+    if color then
+        text = string.format("<mark:%s>%s<>", color, text)
     end
-    return string.format("<mark:%s>%s<>", color, text)
+    if TEXT_SIZE then
+        text = string.format("<size:%s>%s<>", TEXT_SIZE, text)
+    end
+    if BOLD_TEXT then
+        text = "<b>" .. text .. "<>"
+    end
+    return text
 end
 
 -- Stat rows are data driven so the config toggle, the palette key and the
