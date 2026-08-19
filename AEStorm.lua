@@ -442,7 +442,7 @@ task.spawn(function()
                 return nil
             end
 
-            local finishMessage = CFG.FinishMessage or "Done!"
+            local finishMessage = CFG.FinishMessage or "🏁Done!"
             local finishColor = Palette.Finish
 
             local reason
